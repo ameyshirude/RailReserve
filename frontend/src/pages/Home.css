@@ -1,0 +1,4 @@
+.home-page {
+  min-height: calc(100vh - 70px);
+  background: radial-gradient(circle at top, var(--color-navy-3), var(--color-navy) 70%);
+}

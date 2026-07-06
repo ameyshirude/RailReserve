@@ -1,0 +1,138 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+}
+
+model User {
+  id           Int           @id @default(autoincrement())
+  username     String        @unique
+  passwordHash String
+  email        String
+  phone        String
+  role         Role          @default(USER)
+  createdAt    DateTime      @default(now())
+  bookings     Booking[]
+  reservations Reservation[]
+
+  @@map("users")
+}
+
+model Train {
+  id          Int       @id @default(autoincrement())
+  name        String
+  number      String    @unique
+  runningDays String    @default("[0,1,2,3,4,5,6]")
+  createdAt   DateTime  @default(now())
+  halts       Halt[]
+  coaches     Coach[]
+  bookings    Booking[]
+
+  @@map("trains")
+}
+
+model Halt {
+  id            Int     @id @default(autoincrement())
+  trainId       Int
+  stationName   String
+  order         Int
+  arrivalTime   String?
+  departureTime String?
+  train         Train   @relation(fields: [trainId], references: [id], onDelete: Cascade)
+
+  @@unique([trainId, order])
+  @@map("halts")
+}
+
+model Coach {
+  id           Int           @id @default(autoincrement())
+  trainId      Int
+  name         String
+  totalSeats   Int
+  price        Float         @default(0)
+  train        Train         @relation(fields: [trainId], references: [id], onDelete: Cascade)
+  bookingSeats BookingSeat[]
+  reservations Reservation[]
+  bookings     Booking[]
+
+  @@map("coaches")
+}
+
+model Reservation {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  coachId     Int
+  seatNumbers String
+  travelDate  DateTime
+  expiresAt   DateTime
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  coach       Coach    @relation(fields: [coachId], references: [id], onDelete: Cascade)
+
+  @@map("reservations")
+}
+
+model Booking {
+  id                Int              @id @default(autoincrement())
+  userId            Int
+  trainId           Int
+  coachId           Int
+  boarding          String
+  destination       String
+  travelDate        DateTime?
+  status            BookingStatus    @default(CONFIRMED)
+  cancelledSeats    String?
+  bookedAt          DateTime         @default(now())
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  train             Train            @relation(fields: [trainId], references: [id], onDelete: Cascade)
+  coach             Coach            @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  passengers        BookingSeat[]
+  payment           Payment?
+
+  @@map("bookings")
+}
+
+model BookingSeat {
+  id            Int     @id @default(autoincrement())
+  bookingId     Int
+  coachId       Int
+  seatNumber    Int
+  passengerName String
+  passengerAge  Int
+  booking       Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  coach         Coach   @relation(fields: [coachId], references: [id], onDelete: Cascade)
+
+  @@map("booking_seats")
+}
+
+model Payment {
+  id              Int           @id @default(autoincrement())
+  bookingId       Int           @unique
+  stripePaymentId String?       @unique
+  amount          Float
+  currency        String        @default("inr")
+  status          PaymentStatus @default(PENDING)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  booking         Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}

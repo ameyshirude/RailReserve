@@ -1,0 +1,51 @@
+.auth-page {
+  min-height: calc(100vh - 70px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1rem;
+  background: radial-gradient(circle at top, var(--color-navy-3), var(--color-navy) 70%);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+}
+
+.auth-card .ticket-card__header h1 {
+  font-size: 1.4rem;
+  margin: 0;
+}
+.auth-card .ticket-card__header p {
+  margin: 0.25rem 0 0;
+  font-family: var(--font-body);
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--color-steel);
+  font-size: 0.9rem;
+}
+
+.auth-card label {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-soft);
+  margin-bottom: 0.3rem;
+}
+
+.auth-card .form-control:focus {
+  border-color: var(--color-amber);
+  box-shadow: 0 0 0 0.2rem rgba(242, 169, 59, 0.25);
+}
+
+.auth-switch {
+  text-align: center;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: var(--color-ink-soft);
+}
+
+.auth-error {
+  font-size: 0.85rem;
+}
