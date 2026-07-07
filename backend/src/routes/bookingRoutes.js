@@ -21,6 +21,10 @@ function dateRange(date) {
   return { start, end };
 }
 
+function travelDateLockPart(date) {
+  return Math.floor(date.getTime() / (24 * 60 * 60 * 1000));
+}
+
 function parseRunningDays(value) {
   try {
     const days = JSON.parse(value);
@@ -60,6 +64,9 @@ router.post("/reserve", requireAuth, requireRole("USER"), async (req, res) => {
       }
 
       const { start, end } = dateRange(travelDate);
+      await tx.$queryRaw`
+        SELECT pg_advisory_xact_lock(${Number(coachId)}::int, ${travelDateLockPart(travelDate)}::int)
+      `;
 
       const [bookedSeats, activeReservations] = await Promise.all([
         tx.bookingSeat.findMany({

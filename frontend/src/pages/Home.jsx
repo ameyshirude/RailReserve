@@ -23,16 +23,56 @@ export default function Home() {
 
   useEffect(() => {
     const pending = location.state?.pendingTrain;
-    if (pending && user) {
+    if (!pending || !user) return;
+
+    let cancelled = false;
+    const nextTravelDate = pending.travelDate || todayInputValue();
+
+    async function restorePendingBooking() {
       setBoarding(pending.boarding);
       setDestination(pending.destination);
-      setTravelDate(pending.travelDate || todayInputValue());
-      setTrains([pending.train]);
-      setSearched(true);
-      setSelectedTrain(pending.train);
-      window.history.replaceState({}, "");
+      setTravelDate(nextTravelDate);
+      setSearchError("");
+      setSearching(true);
+
+      try {
+        const { data } = await apiClient.get("/trains/search", {
+          params: {
+            boarding: pending.boarding,
+            destination: pending.destination,
+            date: nextTravelDate,
+          },
+        });
+        if (cancelled) return;
+
+        const restoredTrain =
+          data.trains.find((train) => train.id === pending.train?.id) || data.trains[0] || null;
+
+        setTrains(data.trains);
+        setSearched(true);
+        setSelectedTrain(restoredTrain);
+      } catch (err) {
+        if (!cancelled) {
+          setTrains([]);
+          setSearched(true);
+          setSearchError(
+            err.response?.data?.message || "Search failed. Please try again."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setSearching(false);
+          navigate(".", { replace: true, state: null });
+        }
+      }
     }
-  }, [location.state, user]);
+
+    restorePendingBooking();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [location.state, navigate, user]);
 
   const handleSearch = async (e) => {
     e.preventDefault();
