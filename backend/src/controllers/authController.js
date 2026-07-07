@@ -5,13 +5,32 @@ const { validateRegistration, validateLogin } = require("../utils/validators");
 
 const SALT_ROUNDS = 12;
 
-function cookieOptions() {
-  return {
+function cookieOptions({ clear = false } = {}) {
+  const sameSite = (
+    process.env.COOKIE_SAME_SITE ||
+    (process.env.NODE_ENV === "production" ? "none" : "lax")
+  ).toLowerCase();
+
+  const secure =
+    process.env.COOKIE_SECURE === undefined
+      ? sameSite === "none" || process.env.NODE_ENV === "production"
+      : process.env.COOKIE_SECURE === "true";
+
+  const options = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 24 * 60 * 60 * 1000, // 1 day
+    secure,
+    sameSite,
   };
+
+  if (process.env.COOKIE_DOMAIN) {
+    options.domain = process.env.COOKIE_DOMAIN;
+  }
+
+  if (!clear) {
+    options.maxAge = 24 * 60 * 60 * 1000; // 1 day
+  }
+
+  return options;
 }
 
 function signToken(user) {
@@ -122,7 +141,7 @@ async function me(req, res) {
 
 //router.post("/logout", logout);
 function logout(req, res) {
-  res.clearCookie("token", cookieOptions());
+  res.clearCookie("token", cookieOptions({ clear: true }));
   return res.status(200).json({ message: "Logged out." });
 }
 

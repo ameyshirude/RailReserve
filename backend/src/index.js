@@ -13,6 +13,22 @@ const webhookRoutes   = require("./routes/webhookRoutes");
 
 const app = express();
 
+const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:3000")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const corsOptions = {
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`Origin ${origin} is not allowed by CORS.`));
+  },
+  credentials: true,
+};
+
 app.use(
   "/api/webhook/stripe",
   express.raw({ type: "application/json" }),
@@ -21,12 +37,8 @@ app.use(
 
 app.use(express.json());
 app.use(cookieParser());
-app.use(
-  cors({
-    origin: process.env.CLIENT_ORIGIN || "http://localhost:3000",
-    credentials: true,
-  })
-);
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 
