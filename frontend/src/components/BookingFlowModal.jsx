@@ -188,6 +188,7 @@ export function downloadReceipt(booking, amount) {
         <tr><th>Coach</th><td>${booking.coach.name}</td></tr>
         <tr><th>Boarding</th><td>${booking.boarding}</td></tr>
         <tr><th>Destination</th><td>${booking.destination}</td></tr>
+        ${booking.durationText ? `<tr><th>Duration</th><td>${booking.durationText}</td></tr>` : ""}
         <tr><th>Travel Date</th><td>${booking.travelDate ? fmt(booking.travelDate) : "Not set"}</td></tr>
         <tr><th>Booking Date</th><td>${fmt(booking.bookedAt)}</td></tr>
       </tbody>
@@ -263,12 +264,14 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
   useEffect(() => {
     let cancelled = false;
     apiClient
-      .get(`/trains/${train.id}/coaches`, { params: { date: travelDate } })
+      .get(`/trains/${train.id}/coaches`, {
+        params: { date: travelDate, boarding, destination },
+      })
       .then(({ data }) => { if (!cancelled) setCoaches(data.coaches); })
       .catch(() => { if (!cancelled) setCoachError("Failed to load coach availability."); })
       .finally(() => { if (!cancelled) setLoadingCoaches(false); });
     return () => { cancelled = true; };
-  }, [train.id, travelDate]);
+  }, [train.id, travelDate, boarding, destination]);
 
   // 10-minute countdown
   useEffect(() => {
@@ -366,6 +369,8 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
   };
 
   const STEPS = ["Select Coach", "Passenger Details", "Payment", "Confirmed"];
+  const routeFare = Number(selectedCoach?.routeFare || booking?.routeFare || train.routeFare || 0);
+  const durationText = train.durationText || booking?.durationText || "";
 
   return (
     <>
@@ -481,18 +486,12 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                                 >
                                   {coach.availableSeats}/{coach.totalSeats} free
                                 </div>
-                                {coach.price > 0 ? (
-                                  <div
-                                    className="font-mono"
-                                    style={{ fontSize: "0.8rem", color: "var(--color-amber)", fontWeight: 600 }}
-                                  >
-                                    ₹{coach.price.toLocaleString("en-IN")}/seat
-                                  </div>
-                                ) : (
-                                  <div style={{ fontSize: "0.78rem", color: "var(--color-success)" }}>
-                                    Free
-                                  </div>
-                                )}
+                                <div
+                                  className="font-mono"
+                                  style={{ fontSize: "0.78rem", color: "var(--color-ink-soft)" }}
+                                >
+                                  ₹{Number(coach.routeFare || 0).toLocaleString("en-IN")}/seat
+                                </div>
                                 {isFull && (
                                   <div style={{ fontSize: "0.72rem", color: "var(--color-danger)" }}>
                                     FULL
@@ -535,13 +534,13 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                                 )
                               }
                             />
-                            {selectedCoach.price > 0 && (
+                            {routeFare > 0 && (
                               <div
                                 className="mt-2 font-mono fw-semibold"
                                 style={{ color: "var(--color-amber)" }}
                               >
                                 Total:{" "}
-                                ₹{(selectedCoach.price * passengerCount).toLocaleString("en-IN")}
+                                ₹{(routeFare * passengerCount).toLocaleString("en-IN")}
                               </div>
                             )}
                           </div>
@@ -648,20 +647,20 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                     </div>
                   ))}
 
-                  {selectedCoach?.price > 0 && (
+                  {routeFare > 0 && (
                     <div
                       className="d-flex justify-content-between align-items-center p-3 rounded mt-3"
                       style={{ background: "rgba(242,169,59,0.08)", border: "1px solid var(--color-amber)" }}
                     >
                       <span style={{ color: "var(--color-ink)" }}>
                         {passengers.length} seat{passengers.length > 1 ? "s" : ""} ×{" "}
-                        ₹{selectedCoach.price.toLocaleString("en-IN")}
+                        ₹{routeFare.toLocaleString("en-IN")}
                       </span>
                       <span
                         className="font-mono fw-bold"
                         style={{ fontSize: "1.15rem", color: "var(--color-amber)" }}
                       >
-                        ₹{(selectedCoach.price * passengers.length).toLocaleString("en-IN")}
+                        ₹{(routeFare * passengers.length).toLocaleString("en-IN")}
                       </span>
                     </div>
                   )}
@@ -695,8 +694,8 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                         ? "Preparing…"
                         : secondsLeft === 0
                         ? "Reservation Expired"
-                        : selectedCoach?.price > 0
-                        ? `Proceed to Payment — ₹${(selectedCoach.price * passengers.length).toLocaleString("en-IN")}`
+                        : routeFare > 0
+                        ? `Proceed to Payment - ₹${(routeFare * passengers.length).toLocaleString("en-IN")}`
                         : "Confirm Free Booking"}
                     </button>
                   </div>
@@ -772,6 +771,12 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                         <td className="fw-semibold text-muted">Destination</td>
                         <td>{booking.destination}</td>
                       </tr>
+                      {durationText && (
+                        <tr>
+                          <td className="fw-semibold text-muted">Duration</td>
+                          <td>{durationText}</td>
+                        </tr>
+                      )}
                       {amount > 0 && (
                         <tr>
                           <td className="fw-semibold text-muted">Amount Paid</td>

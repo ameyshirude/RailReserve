@@ -1,24 +1,17 @@
 const express = require("express");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const prisma = require("../prismaClient");
+const {
+  fareForCoach,
+  findRouteHalts,
+  journeyDetails,
+  parseRunningDays,
+  parseTravelDate,
+  serviceDateForDestination,
+  toDateInputValue,
+} = require("../utils/journey");
 
 const router = express.Router();
-
-const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
-
-function parseTravelDate(value) {
-  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-  const date = new Date(`${value}T00:00:00.000Z`);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function parseRunningDays(value) {
-  try {
-    const days = JSON.parse(value);
-    if (Array.isArray(days)) return days.map(Number);
-  } catch (_) {}
-  return ALL_DAYS;
-}
 
 function dateRange(date) {
   const start = new Date(date);
@@ -32,8 +25,8 @@ router.get("/search", async (req, res) => {
   const { boarding, destination, date } = req.query;
   if (!boarding || !destination)
     return res.status(400).json({ message: "Both boarding and destination are required." });
-  const travelDate = parseTravelDate(date);
-  if (!travelDate)
+  const destinationArrivalDate = parseTravelDate(date);
+  if (!destinationArrivalDate)
     return res.status(400).json({ message: "A valid travel date is required." });
   if (boarding.toLowerCase() === destination.toLowerCase())
     return res.status(400).json({ message: "Boarding and destination cannot be the same." });
@@ -51,17 +44,30 @@ router.get("/search", async (req, res) => {
 
     const matching = trains
       .map((train) => {
-        const runningDays = parseRunningDays(train.runningDays);
-        if (!runningDays.includes(travelDate.getUTCDay())) return null;
+        const route = findRouteHalts(train.halts, boarding, destination);
+        if (!route) return null;
 
-        const bHalt = train.halts.find(
-          (h) => h.stationName.toLowerCase() === boarding.toLowerCase()
+        const serviceDate = serviceDateForDestination(
+          destinationArrivalDate,
+          route.destinationHalt
         );
-        const dHalt = train.halts.find(
-          (h) => h.stationName.toLowerCase() === destination.toLowerCase()
-        );
-        if (!bHalt || !dHalt || dHalt.order <= bHalt.order) return null;
-        return { ...train, boardingHalt: bHalt, destinationHalt: dHalt };
+        const runningDays = parseRunningDays(train.runningDays);
+        if (!runningDays.includes(serviceDate.getUTCDay())) return null;
+        const details = journeyDetails(route.boardingHalt, route.destinationHalt);
+        const coaches = train.coaches.map((coach) => ({
+          ...coach,
+          routeFare: fareForCoach(details.baseRouteFare, coach.name),
+        }));
+
+        return {
+          ...train,
+          coaches,
+          boardingHalt: route.boardingHalt,
+          destinationHalt: route.destinationHalt,
+          serviceDate: toDateInputValue(serviceDate),
+          destinationArrivalDate: toDateInputValue(destinationArrivalDate),
+          ...details,
+        };
       })
       .filter(Boolean);
 
@@ -76,31 +82,41 @@ router.get("/search", async (req, res) => {
 router.get("/:id/coaches", requireAuth, requireRole("USER"), async (req, res) => {
   const trainId = Number(req.params.id);
   const travelDate = parseTravelDate(req.query.date);
+  const { boarding, destination } = req.query;
   if (!travelDate)
     return res.status(400).json({ message: "A valid travel date is required." });
   const { start, end } = dateRange(travelDate);
 
   try {
-    const coaches = await prisma.coach.findMany({
-      where: { trainId },
+    const train = await prisma.train.findUnique({
+      where: { id: trainId },
       include: {
-        bookingSeats: {
-          where: {
-            booking: {
-              status: "CONFIRMED",
-              travelDate: { gte: start, lt: end },
+        halts: { orderBy: { order: "asc" } },
+        coaches: {
+          include: {
+            bookingSeats: {
+              where: {
+                booking: {
+                  status: "CONFIRMED",
+                  travelDate: { gte: start, lt: end },
+                },
+              },
+              select: { seatNumber: true },
+            },
+            reservations: {
+              where:  { expiresAt: { gt: new Date() }, travelDate: { gte: start, lt: end } },
+              select: { seatNumbers: true },
             },
           },
-          select: { seatNumber: true },
-        },
-        reservations: {
-          where:  { expiresAt: { gt: new Date() }, travelDate: { gte: start, lt: end } },
-          select: { seatNumbers: true },
         },
       },
     });
+    if (!train) return res.status(404).json({ message: "Train not found." });
 
-    const result = coaches.map((coach) => {
+    const route = boarding && destination ? findRouteHalts(train.halts, boarding, destination) : null;
+    const baseRouteFare = route ? journeyDetails(route.boardingHalt, route.destinationHalt).baseRouteFare : 0;
+
+    const result = train.coaches.map((coach) => {
       const bookedNums = new Set(coach.bookingSeats.map((bs) => bs.seatNumber));
       const reservedNums = new Set();
       coach.reservations.forEach((r) => {
@@ -114,7 +130,7 @@ router.get("/:id/coaches", requireAuth, requireRole("USER"), async (req, res) =>
         name:           coach.name,
         totalSeats:     coach.totalSeats,
         availableSeats: available.length,
-        price:          coach.price,
+        routeFare:      fareForCoach(baseRouteFare, coach.name),
       };
     });
 

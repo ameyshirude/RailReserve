@@ -7,6 +7,13 @@ import "./Home.css";
 
 const todayInputValue = () => new Date().toISOString().slice(0, 10);
 
+function formatHaltTime(halt, timeField, dayField) {
+  const time = halt?.[timeField];
+  if (!time) return "—";
+  const day = Number(halt?.[dayField]) || 1;
+  return `${time} · Day ${day}`;
+}
+
 export default function Home() {
   const { user }      = useAuth();
   const navigate      = useNavigate();
@@ -218,6 +225,12 @@ export default function Home() {
               {trains.map((train) => {
                 const bHalt = train.boardingHalt;
                 const dHalt = train.destinationHalt;
+                const coachFares = (train.coaches || [])
+                  .map((coach) => Number(coach.routeFare || 0))
+                  .filter((fare) => fare > 0);
+                const minFare = coachFares.length
+                  ? Math.min(...coachFares)
+                  : Number(train.routeFare || 0);
                 return (
                   <div
                     key={train.id}
@@ -247,7 +260,7 @@ export default function Home() {
                                 Departs
                               </div>
                               <div className="font-mono fw-semibold" style={{ color: "var(--color-ink)" }}>
-                                {bHalt.departureTime || "—"}
+                                {formatHaltTime(bHalt, "departureTime", "departureDay")}
                               </div>
                               <div style={{ fontSize: "0.85rem", color: "var(--color-ink-soft)" }}>
                                 {bHalt.stationName}
@@ -261,7 +274,7 @@ export default function Home() {
                                 Arrives
                               </div>
                               <div className="font-mono fw-semibold" style={{ color: "var(--color-ink)" }}>
-                                {dHalt.arrivalTime || "—"}
+                                {formatHaltTime(dHalt, "arrivalTime", "arrivalDay")}
                               </div>
                               <div style={{ fontSize: "0.85rem", color: "var(--color-ink-soft)" }}>
                                 {dHalt.stationName}
@@ -276,6 +289,29 @@ export default function Home() {
                           >
                             {train.coaches.length} coach{train.coaches.length !== 1 ? "es" : ""}
                           </div>
+                          <div
+                            className="font-mono fw-semibold"
+                            style={{ fontSize: "0.92rem", color: "var(--color-ink)", marginTop: "0.25rem" }}
+                          >
+                            From ₹{minFare.toLocaleString("en-IN")}/seat
+                          </div>
+                          {train.coaches?.length > 0 && (
+                            <div style={{ fontSize: "0.75rem", color: "var(--color-ink-soft)" }}>
+                              {train.coaches
+                                .map((coach) => `${coach.name} ₹${Number(coach.routeFare || 0).toLocaleString("en-IN")}`)
+                                .join(" · ")}
+                            </div>
+                          )}
+                          {train.durationText && (
+                            <div style={{ fontSize: "0.78rem", color: "var(--color-ink-soft)" }}>
+                              Duration {train.durationText}
+                            </div>
+                          )}
+                          {train.serviceDate && train.serviceDate !== travelDate && (
+                            <div style={{ fontSize: "0.75rem", color: "var(--color-ink-soft)" }}>
+                              Starts {train.serviceDate}
+                            </div>
+                          )}
                           <div
                             style={{
                               fontSize: "0.78rem",
@@ -302,7 +338,7 @@ export default function Home() {
           train={selectedTrain}
           boarding={boarding}
           destination={destination}
-          travelDate={travelDate}
+          travelDate={selectedTrain.serviceDate || travelDate}
           onClose={() => setSelectedTrain(null)}
         />
       )}

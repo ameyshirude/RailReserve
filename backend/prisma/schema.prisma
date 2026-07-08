@@ -57,6 +57,9 @@ model Halt {
   order         Int
   arrivalTime   String?
   departureTime String?
+  arrivalDay    Int     @default(1)
+  departureDay  Int     @default(1)
+  price         Float   @default(0)
   train         Train   @relation(fields: [trainId], references: [id], onDelete: Cascade)
 
   @@unique([trainId, order])

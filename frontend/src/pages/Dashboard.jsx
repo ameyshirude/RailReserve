@@ -143,6 +143,18 @@ function BookingCard({ booking }) {
           </div>
         </div>
 
+        {booking.durationText && (
+          <div className="mt-3 pt-3" style={{ borderTop: "1px dashed #ccc" }}>
+            <span
+              className="font-mono"
+              style={{ fontSize: "0.78rem", color: "var(--color-ink-soft)", textTransform: "uppercase" }}
+            >
+              Duration
+            </span>
+            <span className="ms-2 fw-semibold">{booking.durationText}</span>
+          </div>
+        )}
+
         {/* for the list of passengers */}
         {booking.passengers.length > 0 && (
           <div className="mt-3 pt-3" style={{ borderTop: "1px dashed #ccc" }}>

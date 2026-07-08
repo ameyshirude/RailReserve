@@ -1,8 +1,16 @@
 import React, { useEffect, useState } from "react";
 import apiClient from "../api/axiosClient";
 
-const emptyHalt  = () => ({ stationName: "", arrivalTime: "", departureTime: "" });
-const emptyCoach = () => ({ name: "", totalSeats: "", price: "" });
+const emptyHalt  = () => ({
+  stationName: "",
+  arrivalTime: "",
+  departureTime: "",
+  arrivalDay: "1",
+  departureDay: "1",
+  price: "",
+});
+const COACH_NAMES = ["SL", "3A", "2A", "1A"];
+const emptyCoach = () => ({ name: "SL", totalSeats: "" });
 const WEEK_DAYS = [
   { value: 0, label: "Sun" },
   { value: 1, label: "Mon" },
@@ -43,6 +51,9 @@ export default function TrainFormModal({ show, train, onClose, onSaved }) {
               stationName:   h.stationName,
               arrivalTime:   h.arrivalTime   || "",
               departureTime: h.departureTime || "",
+              arrivalDay:    String(h.arrivalDay || 1),
+              departureDay:  String(h.departureDay || 1),
+              price:         String(h.price || ""),
             }))
           : [emptyHalt(), emptyHalt()]
       );
@@ -51,7 +62,6 @@ export default function TrainFormModal({ show, train, onClose, onSaved }) {
           ? train.coaches.map((c) => ({
               name:       c.name,
               totalSeats: String(c.totalSeats),
-              price:      String(c.price),
             }))
           : [emptyCoach()]
       );
@@ -213,12 +223,12 @@ export default function TrainFormModal({ show, train, onClose, onSaved }) {
                       style={{ background: "var(--color-paper-dark)", border: "1px solid #ddd" }}
                     >
                       <div className="row g-2 align-items-end">
-                        <div className="col-1 text-center">
+                        <div className="col-12 col-md-1 text-center">
                           <span className="font-mono fw-bold" style={{ color: "var(--color-ink-soft)" }}>
                             {i + 1}
                           </span>
                         </div>
-                        <div className="col-md-4">
+                        <div className="col-12 col-md-2">
                           <label className="form-label small mb-1">Station Name</label>
                           <input
                             type="text"
@@ -231,7 +241,18 @@ export default function TrainFormModal({ show, train, onClose, onSaved }) {
                             required
                           />
                         </div>
-                        <div className="col-md-3">
+                        <div className="col-6 col-md-1">
+                          <label className="form-label small mb-1">Arr Day</label>
+                          <input
+                            type="number"
+                            className="form-control form-control-sm"
+                            value={halt.arrivalDay}
+                            onChange={(e) => updateHalt(i, "arrivalDay", e.target.value)}
+                            min="1"
+                            disabled={i === 0}
+                          />
+                        </div>
+                        <div className="col-6 col-md-2">
                           <label className="form-label small mb-1">Arrival</label>
                           <input
                             type="time"
@@ -241,7 +262,18 @@ export default function TrainFormModal({ show, train, onClose, onSaved }) {
                             disabled={i === 0}
                           />
                         </div>
-                        <div className="col-md-3">
+                        <div className="col-6 col-md-1">
+                          <label className="form-label small mb-1">Dep Day</label>
+                          <input
+                            type="number"
+                            className="form-control form-control-sm"
+                            value={halt.departureDay}
+                            onChange={(e) => updateHalt(i, "departureDay", e.target.value)}
+                            min="1"
+                            disabled={i === halts.length - 1}
+                          />
+                        </div>
+                        <div className="col-6 col-md-2">
                           <label className="form-label small mb-1">Departure</label>
                           <input
                             type="time"
@@ -251,7 +283,21 @@ export default function TrainFormModal({ show, train, onClose, onSaved }) {
                             disabled={i === halts.length - 1}
                           />
                         </div>
-                        <div className="col-1">
+                        <div className="col-12 col-md-2">
+                          <label className="form-label small mb-1">Fare from Origin</label>
+                          <input
+                            type="number"
+                            className="form-control form-control-sm"
+                            value={i === 0 ? "0" : halt.price}
+                            onChange={(e) => updateHalt(i, "price", e.target.value)}
+                            min="0"
+                            step="0.01"
+                            disabled={i === 0}
+                            placeholder={i === 0 ? "Origin" : "Fare"}
+                            required={i > 0}
+                          />
+                        </div>
+                        <div className="col-12 col-md-1">
                           {halts.length > 2 && (
                             <button
                               type="button"
@@ -288,17 +334,19 @@ export default function TrainFormModal({ show, train, onClose, onSaved }) {
                         >
                           <div className="mb-2">
                             <label className="form-label small mb-1">Coach Name</label>
-                            <input
-                              type="text"
-                              className="form-control form-control-sm"
+                            <select
+                              className="form-select form-select-sm"
                               value={coach.name}
                               onChange={(e) => updateCoach(i, "name", e.target.value)}
-                              placeholder="e.g. S1, A1"
                               required
-                            />
+                            >
+                              {COACH_NAMES.map((name) => (
+                                <option key={name} value={name}>{name}</option>
+                              ))}
+                            </select>
                           </div>
                           <div className="row g-2 mb-2">
-                            <div className="col-6">
+                            <div className="col-12">
                               <label className="form-label small mb-1">Total Seats</label>
                               <input
                                 type="number"
@@ -308,19 +356,6 @@ export default function TrainFormModal({ show, train, onClose, onSaved }) {
                                 min="1"
                                 max="999"
                                 placeholder="e.g. 72"
-                                required
-                              />
-                            </div>
-                            <div className="col-6">
-                              <label className="form-label small mb-1">Price (₹/seat)</label>
-                              <input
-                                type="number"
-                                className="form-control form-control-sm"
-                                value={coach.price}
-                                onChange={(e) => updateCoach(i, "price", e.target.value)}
-                                min="0"
-                                step="0.01"
-                                placeholder="Set a price"
                                 required
                               />
                             </div>

@@ -2,37 +2,21 @@ const express = require("express");
 const Stripe  = require("stripe");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const prisma = require("../prismaClient");
+const {
+  findRouteHalts,
+  journeyDetails,
+  parseRunningDays,
+  parseTravelDate,
+} = require("../utils/journey");
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const router = express.Router();
-
-const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
-
-function parseTravelDate(value) {
-  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-  const date = new Date(`${value}T00:00:00.000Z`);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
 
 function dateRange(date) {
   const start = new Date(date);
   const end = new Date(date);
   end.setUTCDate(end.getUTCDate() + 1);
   return { start, end };
-}
-
-function parseRunningDays(value) {
-  try {
-    const days = JSON.parse(value);
-    if (Array.isArray(days)) return days.map(Number);
-  } catch (_) {}
-  return ALL_DAYS;
-}
-
-function hasValidRoute(halts, boarding, destination) {
-  const bHalt = halts.find((h) => h.stationName.toLowerCase() === boarding.toLowerCase());
-  const dHalt = halts.find((h) => h.stationName.toLowerCase() === destination.toLowerCase());
-  return Boolean(bHalt && dHalt && dHalt.order > bHalt.order);
 }
 
 async function lockCoachForReservation(tx, coachId) {
@@ -172,12 +156,18 @@ router.post("/confirm", requireAuth, requireRole("USER"), async (req, res) => {
         });
       }
 
-      if (!hasValidRoute(reservation.coach.train.halts, boarding, destination)) {
+      const route = findRouteHalts(reservation.coach.train.halts, boarding, destination);
+      if (!route) {
         throw Object.assign(
           new Error("This train does not halt at the selected boarding and destination stations in that order."),
           { statusCode: 409 }
         );
       }
+      const details = journeyDetails(
+        route.boardingHalt,
+        route.destinationHalt,
+        reservation.coach.name
+      );
 
       const seatNumbers = JSON.parse(reservation.seatNumbers);
       if (passengers.length !== seatNumbers.length) {
@@ -206,18 +196,26 @@ router.post("/confirm", requireAuth, requireRole("USER"), async (req, res) => {
         },
         include: {
           train:      { select: { name: true, number: true } },
-          coach:      { select: { name: true, price: true } },
+          coach:      { select: { name: true } },
           passengers: true,
         },
       });
 
       await tx.reservation.delete({ where: { id: reservation.id } });
 
-      return { booking: newBooking, coachPrice: reservation.coach.price };
+      return {
+        booking: {
+          ...newBooking,
+          routeFare: details.routeFare,
+          durationMinutes: details.durationMinutes,
+          durationText: details.durationText,
+        },
+        routeFare: details.routeFare,
+      };
     });
 
-    const { booking, coachPrice } = result;
-    const totalAmount = coachPrice * booking.passengers.length;
+    const { booking, routeFare } = result;
+    const totalAmount = routeFare * booking.passengers.length;
 
     if (totalAmount > 0) {
       const paymentIntent = await stripe.paymentIntents.create({
@@ -344,13 +342,28 @@ router.get("/my", requireAuth, requireRole("USER"), async (req, res) => {
       where:   { userId: req.user.id },
       orderBy: { bookedAt: "desc" },
       include: {
-        train:      { select: { name: true, number: true } },
+        train:      { select: { name: true, number: true, halts: { orderBy: { order: "asc" } } } },
         coach:      { select: { name: true } },
         passengers: true,
         payment:    true,
       },
     });
-    res.json({ bookings });
+    res.json({
+      bookings: bookings.map((booking) => {
+        const route = findRouteHalts(booking.train.halts, booking.boarding, booking.destination);
+        const details = route
+          ? journeyDetails(route.boardingHalt, route.destinationHalt, booking.coach.name)
+          : {};
+        return {
+          ...booking,
+          train: {
+            name: booking.train.name,
+            number: booking.train.number,
+          },
+          ...details,
+        };
+      }),
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to fetch your bookings." });
