@@ -21,10 +21,6 @@ function dateRange(date) {
   return { start, end };
 }
 
-function travelDateLockPart(date) {
-  return Math.floor(date.getTime() / (24 * 60 * 60 * 1000));
-}
-
 function parseRunningDays(value) {
   try {
     const days = JSON.parse(value);
@@ -37,6 +33,12 @@ function hasValidRoute(halts, boarding, destination) {
   const bHalt = halts.find((h) => h.stationName.toLowerCase() === boarding.toLowerCase());
   const dHalt = halts.find((h) => h.stationName.toLowerCase() === destination.toLowerCase());
   return Boolean(bHalt && dHalt && dHalt.order > bHalt.order);
+}
+
+async function lockCoachForReservation(tx, coachId) {
+  await tx.$queryRaw`
+    SELECT id FROM "coaches" WHERE id = ${Number(coachId)} FOR UPDATE
+  `;
 }
 
 // POST /api/bookings/reserve
@@ -64,30 +66,26 @@ router.post("/reserve", requireAuth, requireRole("USER"), async (req, res) => {
       }
 
       const { start, end } = dateRange(travelDate);
-      await tx.$queryRaw`
-        SELECT pg_advisory_xact_lock(${Number(coachId)}::int, ${travelDateLockPart(travelDate)}::int)
-      `;
+      await lockCoachForReservation(tx, coachId);
 
-      const [bookedSeats, activeReservations] = await Promise.all([
-        tx.bookingSeat.findMany({
-          where:  {
-            coachId: Number(coachId),
-            booking: {
-              status: "CONFIRMED",
-              travelDate: { gte: start, lt: end },
-            },
-          },
-          select: { seatNumber: true },
-        }),
-        tx.reservation.findMany({
-          where:  {
-            coachId: Number(coachId),
-            expiresAt: { gt: new Date() },
+      const bookedSeats = await tx.bookingSeat.findMany({
+        where:  {
+          coachId: Number(coachId),
+          booking: {
+            status: "CONFIRMED",
             travelDate: { gte: start, lt: end },
           },
-          select: { seatNumbers: true },
-        }),
-      ]);
+        },
+        select: { seatNumber: true },
+      });
+      const activeReservations = await tx.reservation.findMany({
+        where:  {
+          coachId: Number(coachId),
+          expiresAt: { gt: new Date() },
+          travelDate: { gte: start, lt: end },
+        },
+        select: { seatNumbers: true },
+      });
 
       const bookedNums = new Set(bookedSeats.map((s) => s.seatNumber));
       const reservedNums = new Set();
