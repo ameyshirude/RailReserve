@@ -7,10 +7,10 @@ const emptyHalt  = () => ({
   departureTime: "",
   arrivalDay: "1",
   departureDay: "1",
-  price: "",
+  distance: "",
 });
-const COACH_NAMES = ["SL", "3A", "2A", "1A"];
-const emptyCoach = () => ({ name: "SL", totalSeats: "" });
+const COACH_TYPES = ["SL", "3A", "2A", "1A"];
+const emptyCoach = () => ({ name: "", type: "SL", totalSeats: "" });
 const WEEK_DAYS = [
   { value: 0, label: "Sun" },
   { value: 1, label: "Mon" },
@@ -53,14 +53,16 @@ export default function TrainFormModal({ show, train, onClose, onSaved }) {
               departureTime: h.departureTime || "",
               arrivalDay:    String(h.arrivalDay || 1),
               departureDay:  String(h.departureDay || 1),
-              price:         String(h.price || ""),
+              distance:      String(h.distance ?? ""),
             }))
           : [emptyHalt(), emptyHalt()]
       );
       setCoaches(
         train.coaches.length > 0
           ? train.coaches.map((c) => ({
+              id:         c.id,
               name:       c.name,
+              type:       c.type,
               totalSeats: String(c.totalSeats),
             }))
           : [emptyCoach()]
@@ -94,7 +96,11 @@ export default function TrainFormModal({ show, train, onClose, onSaved }) {
     setError("");
     setSubmitting(true);
     try {
-      const payload = { name, number, runningDays, halts, coaches };
+      const normalizedHalts = halts.map((halt, i) => ({
+        ...halt,
+        distance: i === 0 ? 0 : halt.distance,
+      }));
+      const payload = { name, number, runningDays, halts: normalizedHalts, coaches };
       if (isEdit) {
         await apiClient.put(`/admin/trains/${train.id}`, payload);
       } else {
@@ -284,16 +290,16 @@ export default function TrainFormModal({ show, train, onClose, onSaved }) {
                           />
                         </div>
                         <div className="col-12 col-md-2">
-                          <label className="form-label small mb-1">Fare from Origin</label>
+                          <label className="form-label small mb-1">Distance from Origin (km)</label>
                           <input
                             type="number"
                             className="form-control form-control-sm"
-                            value={i === 0 ? "0" : halt.price}
-                            onChange={(e) => updateHalt(i, "price", e.target.value)}
+                            value={i === 0 ? "0" : halt.distance}
+                            onChange={(e) => updateHalt(i, "distance", e.target.value)}
                             min="0"
                             step="0.01"
                             disabled={i === 0}
-                            placeholder={i === 0 ? "Origin" : "Fare"}
+                            placeholder={i === 0 ? "Origin" : "Distance"}
                             required={i > 0}
                           />
                         </div>
@@ -327,21 +333,33 @@ export default function TrainFormModal({ show, train, onClose, onSaved }) {
                   </div>
                   <div className="row g-2">
                     {coaches.map((coach, i) => (
-                      <div className="col-md-4" key={i}>
+                      <div className="col-md-6 col-lg-4" key={coach.id ?? `new-${i}`}>
                         <div
                           className="p-3 rounded"
                           style={{ background: "var(--color-paper-dark)", border: "1px solid #ddd" }}
                         >
                           <div className="mb-2">
                             <label className="form-label small mb-1">Coach Name</label>
-                            <select
-                              className="form-select form-select-sm"
+                            <input
+                              type="text"
+                              className="form-control form-control-sm"
                               value={coach.name}
                               onChange={(e) => updateCoach(i, "name", e.target.value)}
+                              maxLength="30"
+                              placeholder="e.g. S1, S2, B1"
+                              required
+                            />
+                          </div>
+                          <div className="mb-2">
+                            <label className="form-label small mb-1">Coach Type</label>
+                            <select
+                              className="form-select form-select-sm"
+                              value={coach.type}
+                              onChange={(e) => updateCoach(i, "type", e.target.value)}
                               required
                             >
-                              {COACH_NAMES.map((name) => (
-                                <option key={name} value={name}>{name}</option>
+                              {COACH_TYPES.map((type) => (
+                                <option key={type} value={type}>{type}</option>
                               ))}
                             </select>
                           </div>

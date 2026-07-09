@@ -32,7 +32,7 @@ router.get("/admin/bookings", requireAuth, requireRole("ADMIN"), async (req, res
       include: {
         user:       { select: { username: true, email: true, phone: true } },
         train:      { select: { name: true, number: true } },
-        coach:      { select: { name: true } },
+        coach:      { select: { name: true, type: true } },
         passengers: true,
         payment:    true,
       },

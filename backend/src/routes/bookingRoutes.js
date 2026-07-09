@@ -166,7 +166,7 @@ router.post("/confirm", requireAuth, requireRole("USER"), async (req, res) => {
       const details = journeyDetails(
         route.boardingHalt,
         route.destinationHalt,
-        reservation.coach.name
+        reservation.coach.type
       );
 
       const seatNumbers = JSON.parse(reservation.seatNumbers);
@@ -196,7 +196,7 @@ router.post("/confirm", requireAuth, requireRole("USER"), async (req, res) => {
         },
         include: {
           train:      { select: { name: true, number: true } },
-          coach:      { select: { name: true } },
+          coach:      { select: { name: true, type: true } },
           passengers: true,
         },
       });
@@ -343,7 +343,7 @@ router.get("/my", requireAuth, requireRole("USER"), async (req, res) => {
       orderBy: { bookedAt: "desc" },
       include: {
         train:      { select: { name: true, number: true, halts: { orderBy: { order: "asc" } } } },
-        coach:      { select: { name: true } },
+        coach:      { select: { name: true, type: true } },
         passengers: true,
         payment:    true,
       },
@@ -352,7 +352,7 @@ router.get("/my", requireAuth, requireRole("USER"), async (req, res) => {
       bookings: bookings.map((booking) => {
         const route = findRouteHalts(booking.train.halts, booking.boarding, booking.destination);
         const details = route
-          ? journeyDetails(route.boardingHalt, route.destinationHalt, booking.coach.name)
+          ? journeyDetails(route.boardingHalt, route.destinationHalt, booking.coach.type)
           : {};
         return {
           ...booking,

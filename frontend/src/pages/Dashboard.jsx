@@ -101,7 +101,7 @@ function BookingCard({ booking }) {
               Coach
             </div>
             <div style={{ fontSize: "0.88rem", fontWeight: 600 }}>
-              {booking.coach.name}
+              {booking.coach.name} · {booking.coach.type}
             </div>
           </div>
 

@@ -3,11 +3,12 @@ const { requireAuth, requireRole } = require("../middleware/auth");
 const prisma = require("../prismaClient");
 const {
   fareForCoach,
+  dateForHalt,
   findRouteHalts,
   journeyDetails,
   parseRunningDays,
   parseTravelDate,
-  serviceDateForDestination,
+  serviceDateForBoarding,
   toDateInputValue,
 } = require("../utils/journey");
 
@@ -25,8 +26,8 @@ router.get("/search", async (req, res) => {
   const { boarding, destination, date } = req.query;
   if (!boarding || !destination)
     return res.status(400).json({ message: "Both boarding and destination are required." });
-  const destinationArrivalDate = parseTravelDate(date);
-  if (!destinationArrivalDate)
+  const boardingDate = parseTravelDate(date);
+  if (!boardingDate)
     return res.status(400).json({ message: "A valid travel date is required." });
   if (boarding.toLowerCase() === destination.toLowerCase())
     return res.status(400).json({ message: "Boarding and destination cannot be the same." });
@@ -47,16 +48,19 @@ router.get("/search", async (req, res) => {
         const route = findRouteHalts(train.halts, boarding, destination);
         if (!route) return null;
 
-        const serviceDate = serviceDateForDestination(
-          destinationArrivalDate,
-          route.destinationHalt
-        );
+        const serviceDate = serviceDateForBoarding(boardingDate, route.boardingHalt);
         const runningDays = parseRunningDays(train.runningDays);
         if (!runningDays.includes(serviceDate.getUTCDay())) return null;
+        const destinationDate = dateForHalt(
+          serviceDate,
+          route.destinationHalt,
+          "arrivalDay",
+          "departureDay"
+        );
         const details = journeyDetails(route.boardingHalt, route.destinationHalt);
         const coaches = train.coaches.map((coach) => ({
           ...coach,
-          routeFare: fareForCoach(details.baseRouteFare, coach.name),
+          routeFare: fareForCoach(details.baseRouteFare, coach.type),
         }));
 
         return {
@@ -65,7 +69,8 @@ router.get("/search", async (req, res) => {
           boardingHalt: route.boardingHalt,
           destinationHalt: route.destinationHalt,
           serviceDate: toDateInputValue(serviceDate),
-          destinationArrivalDate: toDateInputValue(destinationArrivalDate),
+          boardingDate: toDateInputValue(boardingDate),
+          destinationDate: toDateInputValue(destinationDate),
           ...details,
         };
       })
@@ -114,7 +119,9 @@ router.get("/:id/coaches", requireAuth, requireRole("USER"), async (req, res) =>
     if (!train) return res.status(404).json({ message: "Train not found." });
 
     const route = boarding && destination ? findRouteHalts(train.halts, boarding, destination) : null;
-    const baseRouteFare = route ? journeyDetails(route.boardingHalt, route.destinationHalt).baseRouteFare : 0;
+    const baseRouteFare = route
+      ? journeyDetails(route.boardingHalt, route.destinationHalt).baseRouteFare
+      : null;
 
     const result = train.coaches.map((coach) => {
       const bookedNums = new Set(coach.bookingSeats.map((bs) => bs.seatNumber));
@@ -128,9 +135,10 @@ router.get("/:id/coaches", requireAuth, requireRole("USER"), async (req, res) =>
       return {
         id:             coach.id,
         name:           coach.name,
+        type:           coach.type,
         totalSeats:     coach.totalSeats,
         availableSeats: available.length,
-        routeFare:      fareForCoach(baseRouteFare, coach.name),
+        routeFare:      baseRouteFare === null ? 0 : fareForCoach(baseRouteFare, coach.type),
       };
     });
 

@@ -125,7 +125,7 @@ export default function TrainManagement() {
                           className="badge me-1"
                           style={{ background: "var(--color-navy-3)", color: "var(--color-paper)", fontFamily: "var(--font-mono)" }}
                         >
-                          {c.name} ({c.totalSeats})
+                          {c.name} · {c.type} ({c.totalSeats})
                         </span>
                       ))}
                     </td>

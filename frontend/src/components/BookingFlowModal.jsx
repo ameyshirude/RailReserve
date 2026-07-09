@@ -185,7 +185,7 @@ export function downloadReceipt(booking, amount) {
     <table>
       <tbody>
         <tr><th style="width:38%">Train</th><td>${booking.train.name} (${booking.train.number})</td></tr>
-        <tr><th>Coach</th><td>${booking.coach.name}</td></tr>
+        <tr><th>Coach</th><td>${booking.coach.name} · ${booking.coach.type}</td></tr>
         <tr><th>Boarding</th><td>${booking.boarding}</td></tr>
         <tr><th>Destination</th><td>${booking.destination}</td></tr>
         ${booking.durationText ? `<tr><th>Duration</th><td>${booking.durationText}</td></tr>` : ""}
@@ -482,6 +482,12 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                                   {coach.name}
                                 </div>
                                 <div
+                                  className="font-mono"
+                                  style={{ fontSize: "0.75rem", color: "var(--color-ink-soft)" }}
+                                >
+                                  {coach.type}
+                                </div>
+                                <div
                                   style={{ fontSize: "0.78rem", color: "var(--color-success)", margin: "2px 0" }}
                                 >
                                   {coach.availableSeats}/{coach.totalSeats} free
@@ -761,7 +767,7 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                       </tr>
                       <tr>
                         <td className="fw-semibold text-muted">Coach</td>
-                        <td>{booking.coach.name}</td>
+                        <td>{booking.coach.name} · {booking.coach.type}</td>
                       </tr>
                       <tr>
                         <td className="fw-semibold text-muted">Boarding</td>

@@ -210,6 +210,7 @@ export default function BookingsModal({ show, onClose, bookings, loading }) {
                                     <span style={{ color: "var(--color-ink-soft)" }}>·</span>
                                     <span style={{ fontSize: "0.82rem", color: "var(--color-ink-soft)" }}>
                                       Coach {booking.coach?.name}
+                                      {booking.coach?.type ? ` · ${booking.coach.type}` : ""}
                                     </span>
                                     <span style={{ color: "var(--color-ink-soft)" }}>·</span>
                                     <span style={{ fontSize: "0.82rem", color: "var(--color-ink-soft)" }}>

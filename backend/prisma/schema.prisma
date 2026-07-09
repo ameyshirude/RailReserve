@@ -59,7 +59,7 @@ model Halt {
   departureTime String?
   arrivalDay    Int     @default(1)
   departureDay  Int     @default(1)
-  price         Float   @default(0)
+  distance      Float   @default(0)
   train         Train   @relation(fields: [trainId], references: [id], onDelete: Cascade)
 
   @@unique([trainId, order])
@@ -70,6 +70,7 @@ model Coach {
   id           Int           @id @default(autoincrement())
   trainId      Int
   name         String
+  type         String
   totalSeats   Int
   price        Float         @default(0)
   train        Train         @relation(fields: [trainId], references: [id], onDelete: Cascade)
@@ -77,6 +78,7 @@ model Coach {
   reservations Reservation[]
   bookings     Booking[]
 
+  @@unique([trainId, name])
   @@map("coaches")
 }
 
@@ -94,21 +96,21 @@ model Reservation {
 }
 
 model Booking {
-  id                Int              @id @default(autoincrement())
-  userId            Int
-  trainId           Int
-  coachId           Int
-  boarding          String
-  destination       String
-  travelDate        DateTime?
-  status            BookingStatus    @default(CONFIRMED)
-  cancelledSeats    String?
-  bookedAt          DateTime         @default(now())
-  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  train             Train            @relation(fields: [trainId], references: [id], onDelete: Cascade)
-  coach             Coach            @relation(fields: [coachId], references: [id], onDelete: Cascade)
-  passengers        BookingSeat[]
-  payment           Payment?
+  id             Int           @id @default(autoincrement())
+  userId         Int
+  trainId        Int
+  coachId        Int
+  boarding       String
+  destination    String
+  travelDate     DateTime?
+  status         BookingStatus @default(CONFIRMED)
+  cancelledSeats String?
+  bookedAt       DateTime      @default(now())
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  train          Train         @relation(fields: [trainId], references: [id], onDelete: Cascade)
+  coach          Coach         @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  passengers     BookingSeat[]
+  payment        Payment?
 
   @@map("bookings")
 }

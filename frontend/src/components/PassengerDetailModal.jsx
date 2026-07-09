@@ -62,7 +62,10 @@ export default function PassengerDetailModal({ booking, onClose, onRefund }) {
     { field: "Email",       value: booking.user?.email },
     { field: "Phone",       value: booking.user?.phone },
     { field: "Train",       value: `${booking.train?.name} (${booking.train?.number})` },
-    { field: "Coach",       value: booking.coach?.name },
+    {
+      field: "Coach",
+      value: [booking.coach?.name, booking.coach?.type].filter(Boolean).join(" · "),
+    },
     { field: "Boarding",    value: booking.boarding ?? "—" },
     { field: "Destination", value: booking.destination ?? "—" },
     { field: "Status",      value: booking.status ?? "CONFIRMED" },

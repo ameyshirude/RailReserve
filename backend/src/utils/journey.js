@@ -48,9 +48,18 @@ function destinationMinute(halt) {
     ?? haltMinute(halt, "departureTime", "departureDay");
 }
 
-function serviceDateForDestination(arrivalDate, destinationHalt) {
-  const arrivalDay = Math.max(1, Number(destinationHalt.arrivalDay || destinationHalt.departureDay) || 1);
-  return addUtcDays(arrivalDate, -(arrivalDay - 1));
+function haltDay(halt, primaryDayField, fallbackDayField) {
+  return Math.max(1, Number(halt[primaryDayField] || halt[fallbackDayField]) || 1);
+}
+
+function serviceDateForBoarding(boardingDate, boardingHalt) {
+  const day = haltDay(boardingHalt, "departureDay", "arrivalDay");
+  return addUtcDays(boardingDate, -(day - 1));
+}
+
+function dateForHalt(serviceDate, halt, primaryDayField, fallbackDayField) {
+  const day = haltDay(halt, primaryDayField, fallbackDayField);
+  return addUtcDays(serviceDate, day - 1);
 }
 
 function routeDurationMinutes(boardingHalt, destinationHalt) {
@@ -71,30 +80,44 @@ function formatDuration(totalMinutes) {
 
 const COACH_FARE_MULTIPLIERS = {
   SL: 1,
-  "3A": 2,
-  "2A": 2.8,
-  "1A": 4.5,
+  "3A": 1.8,
+  "2A": 2.2,
+  "1A": 3.2,
 };
 
+const BASE_RATE_PER_KM = 0.55;
+const MINIMUM_FARES = {
+  SL: 120,
+  "3A": 430,
+  "2A": 670,
+  "1A": 1050,
+};
 const ALLOWED_COACH_NAMES = Object.keys(COACH_FARE_MULTIPLIERS);
 
-function normalizeCoachName(value) {
+function normalizeCoachType(value) {
   return String(value || "").trim().toUpperCase();
 }
 
-function isAllowedCoachName(value) {
-  return ALLOWED_COACH_NAMES.includes(normalizeCoachName(value));
+function isAllowedCoachType(value) {
+  return ALLOWED_COACH_NAMES.includes(normalizeCoachType(value));
 }
 
 function fareForCoach(baseFare, coachName) {
-  const multiplier = COACH_FARE_MULTIPLIERS[normalizeCoachName(coachName)] || 1;
-  return Math.round((Number(baseFare) || 0) * multiplier * 100) / 100;
+  const normalizedCoachType = normalizeCoachType(coachName);
+  const multiplier = COACH_FARE_MULTIPLIERS[normalizedCoachType] || 1;
+  const minimumFare = MINIMUM_FARES[normalizedCoachType] || MINIMUM_FARES.SL;
+  const calculatedFare = (Number(baseFare) || 0) * multiplier;
+  return Math.round(Math.max(calculatedFare, minimumFare) * 100) / 100;
+}
+
+function routeDistance(boardingHalt, destinationHalt) {
+  const boardingDistance = Number(boardingHalt.distance) || 0;
+  const destinationDistance = Number(destinationHalt.distance) || 0;
+  return Math.max(0, destinationDistance - boardingDistance);
 }
 
 function routeFare(boardingHalt, destinationHalt) {
-  const boardingFare = Number(boardingHalt.price) || 0;
-  const destinationFare = Number(destinationHalt.price) || 0;
-  return Math.max(0, destinationFare - boardingFare);
+  return routeDistance(boardingHalt, destinationHalt) * BASE_RATE_PER_KM;
 }
 
 function findRouteHalts(halts, boarding, destination) {
@@ -106,8 +129,10 @@ function findRouteHalts(halts, boarding, destination) {
 
 function journeyDetails(boardingHalt, destinationHalt, coachName = "SL") {
   const durationMinutes = routeDurationMinutes(boardingHalt, destinationHalt);
+  const distance = routeDistance(boardingHalt, destinationHalt);
   const baseRouteFare = routeFare(boardingHalt, destinationHalt);
   return {
+    distance,
     baseRouteFare,
     routeFare: fareForCoach(baseRouteFare, coachName),
     durationMinutes,
@@ -117,18 +142,23 @@ function journeyDetails(boardingHalt, destinationHalt, coachName = "SL") {
 
 module.exports = {
   ALLOWED_COACH_NAMES,
+  BASE_RATE_PER_KM,
+  COACH_FARE_MULTIPLIERS,
+  MINIMUM_FARES,
   parseRunningDays,
   parseTravelDate,
   toDateInputValue,
   addUtcDays,
   boardingMinute,
   destinationMinute,
-  serviceDateForDestination,
+  serviceDateForBoarding,
+  dateForHalt,
   routeDurationMinutes,
   formatDuration,
   fareForCoach,
-  isAllowedCoachName,
-  normalizeCoachName,
+  isAllowedCoachType,
+  normalizeCoachType,
+  routeDistance,
   routeFare,
   findRouteHalts,
   journeyDetails,

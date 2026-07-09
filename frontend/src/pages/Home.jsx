@@ -3,15 +3,22 @@ import { useNavigate, useLocation } from "react-router-dom";
 import apiClient from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
 import BookingFlowModal from "../components/BookingFlowModal";
+import { uniqueCoachFareOptions } from "../utils/coachDisplay";
 import "./Home.css";
 
 const todayInputValue = () => new Date().toISOString().slice(0, 10);
 
-function formatHaltTime(halt, timeField, dayField) {
+function formatHaltDateTime(halt, timeField, date) {
   const time = halt?.[timeField];
   if (!time) return "—";
-  const day = Number(halt?.[dayField]) || 1;
-  return `${time} · Day ${day}`;
+  if (!date) return time;
+  const formattedDate = new Intl.DateTimeFormat("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${date}T00:00:00.000Z`));
+  return `${formattedDate}, ${time}`;
 }
 
 export default function Home() {
@@ -231,6 +238,7 @@ export default function Home() {
                 const minFare = coachFares.length
                   ? Math.min(...coachFares)
                   : Number(train.routeFare || 0);
+                const fareByCoachType = uniqueCoachFareOptions(train.coaches);
                 return (
                   <div
                     key={train.id}
@@ -260,7 +268,7 @@ export default function Home() {
                                 Departs
                               </div>
                               <div className="font-mono fw-semibold" style={{ color: "var(--color-ink)" }}>
-                                {formatHaltTime(bHalt, "departureTime", "departureDay")}
+                                {formatHaltDateTime(bHalt, "departureTime", train.boardingDate)}
                               </div>
                               <div style={{ fontSize: "0.85rem", color: "var(--color-ink-soft)" }}>
                                 {bHalt.stationName}
@@ -274,7 +282,7 @@ export default function Home() {
                                 Arrives
                               </div>
                               <div className="font-mono fw-semibold" style={{ color: "var(--color-ink)" }}>
-                                {formatHaltTime(dHalt, "arrivalTime", "arrivalDay")}
+                                {formatHaltDateTime(dHalt, "arrivalTime", train.destinationDate)}
                               </div>
                               <div style={{ fontSize: "0.85rem", color: "var(--color-ink-soft)" }}>
                                 {dHalt.stationName}
@@ -295,21 +303,16 @@ export default function Home() {
                           >
                             From ₹{minFare.toLocaleString("en-IN")}/seat
                           </div>
-                          {train.coaches?.length > 0 && (
+                          {fareByCoachType.length > 0 && (
                             <div style={{ fontSize: "0.75rem", color: "var(--color-ink-soft)" }}>
-                              {train.coaches
-                                .map((coach) => `${coach.name} ₹${Number(coach.routeFare || 0).toLocaleString("en-IN")}`)
+                              {fareByCoachType
+                                .map((coach) => `${coach.type || coach.name} ₹${Number(coach.routeFare || 0).toLocaleString("en-IN")}`)
                                 .join(" · ")}
                             </div>
                           )}
                           {train.durationText && (
                             <div style={{ fontSize: "0.78rem", color: "var(--color-ink-soft)" }}>
                               Duration {train.durationText}
-                            </div>
-                          )}
-                          {train.serviceDate && train.serviceDate !== travelDate && (
-                            <div style={{ fontSize: "0.75rem", color: "var(--color-ink-soft)" }}>
-                              Starts {train.serviceDate}
                             </div>
                           )}
                           <div
