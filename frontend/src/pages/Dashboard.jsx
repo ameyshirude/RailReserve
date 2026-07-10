@@ -18,6 +18,52 @@ function formatTravelDate(iso) {
   });
 }
 
+function formatDateTime(iso) {
+  if (!iso) return "Not set";
+  return new Date(iso).toLocaleString("en-IN", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatDistance(distance) {
+  const value = Number(distance);
+  if (!Number.isFinite(value)) return "Not set";
+  return `${value.toLocaleString("en-IN", { maximumFractionDigits: 1 })} km`;
+}
+
+function TicketDetail({ label, children, mono = false }) {
+  return (
+    <div className="col-6 col-md-3">
+      <div
+        style={{
+          fontSize:      "0.72rem",
+          textTransform: "uppercase",
+          fontFamily:    "var(--font-mono)",
+          color:         "var(--color-ink-soft)",
+          marginBottom:  "3px",
+        }}
+      >
+        {label}
+      </div>
+      <div
+        className={mono ? "font-mono fw-semibold" : undefined}
+        style={{
+          fontSize:  "0.88rem",
+          fontWeight: mono ? undefined : 600,
+          wordBreak: "break-word",
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function BookingCard({ booking }) {
   const seatDisplay = booking.passengers
     .map((p) => `CNF/${p.seatNumber}`)
@@ -71,6 +117,10 @@ function BookingCard({ booking }) {
         </div>
 
         <div className="row g-3">
+          <TicketDetail label="PNR" mono>{booking.pnr || "Not set"}</TicketDetail>
+          <TicketDetail label="Distance">{formatDistance(booking.distance)}</TicketDetail>
+          <TicketDetail label="Start">{formatDateTime(booking.startDateTime)}</TicketDetail>
+          <TicketDetail label="Arrival">{formatDateTime(booking.arrivalDateTime)}</TicketDetail>
           <div className="col-6 col-md-3">
             <div
               style={{
@@ -204,15 +254,23 @@ function BookingCard({ booking }) {
         {/* Amount */}
         {booking.payment && booking.payment.amount > 0 && (
           <div
-            className="mt-3 d-flex justify-content-end"
+            className="mt-3 d-flex justify-content-between flex-wrap gap-2"
             style={{ fontSize: "0.82rem", color: "var(--color-ink-soft)" }}
           >
-            Amount paid:{" "}
+            <span>
+              Payment ID:{" "}
+              <span className="font-mono fw-semibold" style={{ color: "var(--color-ink)" }}>
+                {booking.stripeId || booking.payment.stripePaymentId || "Not set"}
+              </span>
+            </span>
+            <span>
+              Amount paid:{" "}
             <span
               className="font-mono fw-semibold ms-1"
               style={{ color: "var(--color-ink)" }}
             >
               ₹{booking.payment.amount.toLocaleString("en-IN")}
+            </span>
             </span>
           </div>
         )}

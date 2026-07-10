@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const prisma = require("./prismaClient");
+const { createUniquePnr } = require("./utils/bookingPresenter");
 
 const authRoutes      = require("./routes/authRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
@@ -75,6 +76,7 @@ setInterval(async () => {
 
           await tx.booking.create({
             data: {
+              pnr:            await createUniquePnr(tx),
               userId:         r.userId,
               trainId:        r.coach.trainId,
               coachId:        r.coachId,

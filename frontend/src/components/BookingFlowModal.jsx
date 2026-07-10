@@ -134,6 +134,11 @@ export function downloadReceipt(booking, amount) {
       weekday: "short", year: "numeric", month: "short",
       day: "numeric", hour: "2-digit", minute: "2-digit",
     });
+  const fmtMaybe = (iso) => (iso ? fmt(iso) : "Not set");
+  const distanceText = Number.isFinite(Number(booking.distance))
+    ? `${Number(booking.distance).toLocaleString("en-IN", { maximumFractionDigits: 1 })} km`
+    : "Not set";
+  const stripeId = booking.stripeId || booking.payment?.stripePaymentId || "Not set";
 
   const passengerRows = booking.passengers
     .map(
@@ -179,17 +184,21 @@ export function downloadReceipt(booking, amount) {
   </div>
   <div class="perf"></div>
   <div class="body">
-    <div class="booking-id">BOOKING #${String(booking.id).padStart(6, "0")}</div>
+    <div class="booking-id">PNR ${booking.pnr || "Not set"}</div>
 
     <h3>Journey Details</h3>
     <table>
       <tbody>
         <tr><th style="width:38%">Train</th><td>${booking.train.name} (${booking.train.number})</td></tr>
+        <tr><th>Booking ID</th><td>#${String(booking.id).padStart(6, "0")}</td></tr>
+        <tr><th>PNR</th><td>${booking.pnr || "Not set"}</td></tr>
         <tr><th>Coach</th><td>${booking.coach.name} · ${booking.coach.type}</td></tr>
         <tr><th>Boarding</th><td>${booking.boarding}</td></tr>
         <tr><th>Destination</th><td>${booking.destination}</td></tr>
+        <tr><th>Distance</th><td>${distanceText}</td></tr>
+        <tr><th>Start Date & Time</th><td>${fmtMaybe(booking.startDateTime)}</td></tr>
+        <tr><th>Arrival Date & Time</th><td>${fmtMaybe(booking.arrivalDateTime)}</td></tr>
         ${booking.durationText ? `<tr><th>Duration</th><td>${booking.durationText}</td></tr>` : ""}
-        <tr><th>Travel Date</th><td>${booking.travelDate ? fmt(booking.travelDate) : "Not set"}</td></tr>
         <tr><th>Booking Date</th><td>${fmt(booking.bookedAt)}</td></tr>
       </tbody>
     </table>
@@ -206,6 +215,7 @@ export function downloadReceipt(booking, amount) {
     <table>
       <tbody>
         <tr><th style="width:38%">Amount Paid</th><td>₹${amount.toLocaleString("en-IN")}</td></tr>
+        <tr><th>Stripe ID</th><td>${stripeId}</td></tr>
         <tr><th>Currency</th><td>INR</td></tr>
         <tr><th>Status</th><td class="paid">✓ PAID</td></tr>
       </tbody>
@@ -223,7 +233,7 @@ export function downloadReceipt(booking, amount) {
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement("a");
   a.href     = url;
-  a.download = `RailReserve-Receipt-${booking.id}.html`;
+  a.download = `RailReserve-Receipt-${booking.pnr || booking.id}.html`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -371,6 +381,21 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
   const STEPS = ["Select Coach", "Passenger Details", "Payment", "Confirmed"];
   const routeFare = Number(selectedCoach?.routeFare || booking?.routeFare || train.routeFare || 0);
   const durationText = train.durationText || booking?.durationText || "";
+  const formatJourneyDateTime = (iso) =>
+    iso
+      ? new Date(iso).toLocaleString("en-IN", {
+          weekday: "short",
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "Not set";
+  const bookingDistanceText = Number.isFinite(Number(booking?.distance))
+    ? `${Number(booking.distance).toLocaleString("en-IN", { maximumFractionDigits: 1 })} km`
+    : "Not set";
+  const bookingStripeId = booking?.stripeId || booking?.payment?.stripePaymentId || "Not set";
 
   return (
     <>
@@ -752,7 +777,7 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                       Booking Confirmed!
                     </h4>
                     <p className="text-muted small mb-0">
-                      Booking #{String(booking.id).padStart(6, "0")}
+                      PNR {booking.pnr || "Not set"} · Booking #{String(booking.id).padStart(6, "0")}
                     </p>
                   </div>
 
@@ -766,6 +791,10 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                         <td>{booking.train.name} (#{booking.train.number})</td>
                       </tr>
                       <tr>
+                        <td className="fw-semibold text-muted">PNR</td>
+                        <td className="font-mono">{booking.pnr || "Not set"}</td>
+                      </tr>
+                      <tr>
                         <td className="fw-semibold text-muted">Coach</td>
                         <td>{booking.coach.name} · {booking.coach.type}</td>
                       </tr>
@@ -776,6 +805,18 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                       <tr>
                         <td className="fw-semibold text-muted">Destination</td>
                         <td>{booking.destination}</td>
+                      </tr>
+                      <tr>
+                        <td className="fw-semibold text-muted">Distance</td>
+                        <td>{bookingDistanceText}</td>
+                      </tr>
+                      <tr>
+                        <td className="fw-semibold text-muted">Start Date & Time</td>
+                        <td>{formatJourneyDateTime(booking.startDateTime)}</td>
+                      </tr>
+                      <tr>
+                        <td className="fw-semibold text-muted">Arrival Date & Time</td>
+                        <td>{formatJourneyDateTime(booking.arrivalDateTime)}</td>
                       </tr>
                       {durationText && (
                         <tr>
@@ -791,6 +832,10 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                           </td>
                         </tr>
                       )}
+                      <tr>
+                        <td className="fw-semibold text-muted">Stripe ID</td>
+                        <td className="font-mono" style={{ wordBreak: "break-all" }}>{bookingStripeId}</td>
+                      </tr>
                     </tbody>
                   </table>
 

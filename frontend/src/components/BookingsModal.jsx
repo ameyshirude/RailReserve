@@ -57,6 +57,7 @@ export default function BookingsModal({ show, onClose, bookings, loading }) {
   // keeping a local copy of refund payment status
   const [localBookings, setLocalBookings] = useState(bookings);
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const [pnrSearch, setPnrSearch] = useState("");
 
   // for sync
   React.useEffect(() => {
@@ -75,13 +76,16 @@ export default function BookingsModal({ show, onClose, bookings, loading }) {
 
   const grouped = useMemo(() => {
     const map = {};
-    localBookings.forEach((b) => {
+    const query = pnrSearch.trim().toUpperCase();
+    localBookings
+      .filter((b) => !query || String(b.pnr || "").toUpperCase().includes(query))
+      .forEach((b) => {
       const dateKey = new Date(b.bookedAt).toLocaleDateString("en-CA");
       if (!map[dateKey]) map[dateKey] = [];
       map[dateKey].push(b);
     });
     return Object.entries(map).sort(([a], [b]) => b.localeCompare(a));
-  }, [localBookings]);
+  }, [localBookings, pnrSearch]);
 
   if (!show) return null;
 
@@ -130,6 +134,28 @@ export default function BookingsModal({ show, onClose, bookings, loading }) {
             </div>
 
             <div className="modal-body p-0">
+              <div className="p-3 border-bottom" style={{ background: "var(--color-paper-dark)" }}>
+                <label
+                  className="form-label mb-1"
+                  htmlFor="booking-pnr-search"
+                  style={{
+                    fontFamily:    "var(--font-mono)",
+                    fontSize:      "0.75rem",
+                    textTransform: "uppercase",
+                    color:         "var(--color-ink-soft)",
+                  }}
+                >
+                  Search by PNR
+                </label>
+                <input
+                  id="booking-pnr-search"
+                  type="search"
+                  className="form-control"
+                  value={pnrSearch}
+                  onChange={(e) => setPnrSearch(e.target.value)}
+                  placeholder="Enter PNR"
+                />
+              </div>
               {loading && (
                 <div className="d-flex justify-content-center align-items-center py-5">
                   <div
@@ -144,7 +170,7 @@ export default function BookingsModal({ show, onClose, bookings, loading }) {
 
               {!loading && grouped.length === 0 && (
                 <p className="text-center text-muted py-5 mb-0">
-                  No bookings have been made yet.
+                  {pnrSearch.trim() ? "No bookings match that PNR." : "No bookings have been made yet."}
                 </p>
               )}
 
@@ -201,6 +227,9 @@ export default function BookingsModal({ show, onClose, bookings, loading }) {
                                       }}
                                     >
                                       {formatTime(booking.bookedAt)}
+                                    </span>
+                                    <span className="font-mono fw-semibold" style={{ fontSize: "0.82rem" }}>
+                                      {booking.pnr || "No PNR"}
                                     </span>
                                     <span className="fw-semibold">{booking.user?.username}</span>
                                     <span style={{ color: "var(--color-ink-soft)" }}>·</span>

@@ -97,6 +97,7 @@ model Reservation {
 
 model Booking {
   id             Int           @id @default(autoincrement())
+  pnr            String        @unique
   userId         Int
   trainId        Int
   coachId        Int

@@ -1,6 +1,7 @@
 const express = require("express");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const prisma = require("../prismaClient");
+const { presentBooking } = require("../utils/bookingPresenter");
 
 const router = express.Router();
 
@@ -31,13 +32,13 @@ router.get("/admin/bookings", requireAuth, requireRole("ADMIN"), async (req, res
       orderBy: { bookedAt: "desc" },
       include: {
         user:       { select: { username: true, email: true, phone: true } },
-        train:      { select: { name: true, number: true } },
+        train:      { select: { name: true, number: true, halts: { orderBy: { order: "asc" } } } },
         coach:      { select: { name: true, type: true } },
         passengers: true,
         payment:    true,
       },
     });
-    res.json({ bookings });
+    res.json({ bookings: bookings.map(presentBooking) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to load bookings." });

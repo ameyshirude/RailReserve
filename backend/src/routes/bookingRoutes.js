@@ -4,10 +4,14 @@ const { requireAuth, requireRole } = require("../middleware/auth");
 const prisma = require("../prismaClient");
 const {
   findRouteHalts,
-  journeyDetails,
   parseRunningDays,
   parseTravelDate,
 } = require("../utils/journey");
+const {
+  createUniquePnr,
+  journeyFields,
+  presentBooking,
+} = require("../utils/bookingPresenter");
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const router = express.Router();
@@ -163,9 +167,9 @@ router.post("/confirm", requireAuth, requireRole("USER"), async (req, res) => {
           { statusCode: 409 }
         );
       }
-      const details = journeyDetails(
-        route.boardingHalt,
-        route.destinationHalt,
+      const details = journeyFields(
+        { travelDate: reservation.travelDate },
+        route,
         reservation.coach.type
       );
 
@@ -179,6 +183,7 @@ router.post("/confirm", requireAuth, requireRole("USER"), async (req, res) => {
 
       const newBooking = await tx.booking.create({
         data: {
+          pnr:        await createUniquePnr(tx),
           userId,
           trainId:     reservation.coach.trainId,
           coachId:     reservation.coachId,
@@ -207,8 +212,11 @@ router.post("/confirm", requireAuth, requireRole("USER"), async (req, res) => {
         booking: {
           ...newBooking,
           routeFare: details.routeFare,
+          distance: details.distance,
           durationMinutes: details.durationMinutes,
           durationText: details.durationText,
+          startDateTime: details.startDateTime,
+          arrivalDateTime: details.arrivalDateTime,
         },
         routeFare: details.routeFare,
       };
@@ -225,7 +233,7 @@ router.post("/confirm", requireAuth, requireRole("USER"), async (req, res) => {
         automatic_payment_methods: { enabled: true },
       });
 
-      await prisma.payment.create({
+      const payment = await prisma.payment.create({
         data: {
           bookingId:       booking.id,
           stripePaymentId: paymentIntent.id,
@@ -236,14 +244,14 @@ router.post("/confirm", requireAuth, requireRole("USER"), async (req, res) => {
       });
 
       return res.status(201).json({
-        booking,
+        booking: { ...booking, payment, stripeId: payment.stripePaymentId },
         clientSecret:    paymentIntent.client_secret,
         amount:          totalAmount,
         requiresPayment: true,
       });
     }
 
-    await prisma.payment.create({
+    const payment = await prisma.payment.create({
       data: {
         bookingId:       booking.id,
         stripePaymentId: null,
@@ -254,7 +262,7 @@ router.post("/confirm", requireAuth, requireRole("USER"), async (req, res) => {
     });
 
     return res.status(201).json({
-      booking,
+      booking: { ...booking, payment, stripeId: payment.stripePaymentId },
       clientSecret:    null,
       amount:          0,
       requiresPayment: false,
@@ -349,20 +357,7 @@ router.get("/my", requireAuth, requireRole("USER"), async (req, res) => {
       },
     });
     res.json({
-      bookings: bookings.map((booking) => {
-        const route = findRouteHalts(booking.train.halts, booking.boarding, booking.destination);
-        const details = route
-          ? journeyDetails(route.boardingHalt, route.destinationHalt, booking.coach.type)
-          : {};
-        return {
-          ...booking,
-          train: {
-            name: booking.train.name,
-            number: booking.train.number,
-          },
-          ...details,
-        };
-      }),
+      bookings: bookings.map(presentBooking),
     });
   } catch (err) {
     console.error(err);

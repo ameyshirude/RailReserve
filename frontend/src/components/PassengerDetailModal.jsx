@@ -42,6 +42,13 @@ export default function PassengerDetailModal({ booking, onClose, onRefund }) {
       weekday: "short", year: "numeric", month: "short",
       day: "numeric", hour: "2-digit", minute: "2-digit",
     });
+  const formatMaybeDateTime = (iso) => (iso ? formatDateTime(iso) : "Not set");
+  const formatDistance = (distance) => {
+    const value = Number(distance);
+    return Number.isFinite(value)
+      ? `${value.toLocaleString("en-IN", { maximumFractionDigits: 1 })} km`
+      : "Not set";
+  };
 
   const handleRefund = async () => {
     setRefundError("");
@@ -58,6 +65,7 @@ export default function PassengerDetailModal({ booking, onClose, onRefund }) {
   };
 
   const summaryRows = [
+    { field: "PNR",         value: booking.pnr },
     { field: "Username",    value: booking.user?.username },
     { field: "Email",       value: booking.user?.email },
     { field: "Phone",       value: booking.user?.phone },
@@ -68,6 +76,9 @@ export default function PassengerDetailModal({ booking, onClose, onRefund }) {
     },
     { field: "Boarding",    value: booking.boarding ?? "—" },
     { field: "Destination", value: booking.destination ?? "—" },
+    { field: "Distance",    value: formatDistance(booking.distance) },
+    { field: "Start Date & Time", value: formatMaybeDateTime(booking.startDateTime) },
+    { field: "Arrival Date & Time", value: formatMaybeDateTime(booking.arrivalDateTime) },
     { field: "Status",      value: booking.status ?? "CONFIRMED" },
     { field: "Booked On",   value: formatDateTime(booking.bookedAt) },
   ];
