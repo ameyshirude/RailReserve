@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import "./Navbar.css";
@@ -6,15 +6,36 @@ import "./Navbar.css";
 export default function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [isAnimating, setIsAnimating] = useState(false);
 
   const handleLogout = async () => {
     await logout();
     navigate("/");
   };
 
+  const handleInteraction = () => {
+    if (!isAnimating) {
+      setIsAnimating(true);
+    }
+  };
+
   return (
     <nav className="rr-navbar navbar navbar-dark px-3 px-md-5 py-2">
-      <Link to="/" className="rr-brand">
+      <div className="rr-train-track" aria-hidden="true">
+        <div
+          className={`rr-train ${isAnimating ? "is-running" : ""}`}
+          onAnimationEnd={() => setIsAnimating(false)}
+        >
+          🚅🚃🚃🚃🚃🚃🚃🚃🚃🚃🚃🚃🚃
+        </div>
+      </div>
+
+      <Link 
+        to="/" 
+        className="rr-brand" 
+        onMouseEnter={handleInteraction}
+        onClick={handleInteraction}
+      >
         <span className="rr-brand__mark" aria-hidden="true">
           🚆
         </span>
