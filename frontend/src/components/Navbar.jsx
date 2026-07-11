@@ -34,6 +34,7 @@ export default function Navbar() {
         to="/" 
         className="rr-brand" 
         onMouseEnter={handleInteraction}
+        onTouchStart={handleInteraction}
         onClick={handleInteraction}
       >
         <span className="rr-brand__mark" aria-hidden="true">

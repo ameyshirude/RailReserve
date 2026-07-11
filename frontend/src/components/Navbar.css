@@ -19,6 +19,8 @@
   font-weight: 600;
   position: relative;
   z-index: 1;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 .rr-brand:hover {
   color: var(--color-amber-dark);
@@ -67,6 +69,17 @@
   }
 }
 
+@media (max-width: 768px) {
+  .rr-train {
+    font-size: 1.6rem;
+  }
+  
+  .rr-brand {
+    font-size: 1.1rem;
+  }
+}
+
+
 .dropdown {
   position: relative;
   z-index: 1;
@@ -86,6 +99,7 @@
   gap: 5px;
   cursor: pointer;
   transition: border-color 0.15s ease, background-color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 .rr-hamburger:hover,
 .rr-hamburger[aria-expanded="true"] {
