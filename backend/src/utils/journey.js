@@ -98,6 +98,10 @@ function normalizeCoachType(value) {
   return String(value || "").trim().toUpperCase();
 }
 
+function normalizeStationName(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
 function isAllowedCoachType(value) {
   return ALLOWED_COACH_NAMES.includes(normalizeCoachType(value));
 }
@@ -121,8 +125,10 @@ function routeFare(boardingHalt, destinationHalt) {
 }
 
 function findRouteHalts(halts, boarding, destination) {
-  const bHalt = halts.find((h) => h.stationName.toLowerCase() === boarding.toLowerCase());
-  const dHalt = halts.find((h) => h.stationName.toLowerCase() === destination.toLowerCase());
+  const boardingName = normalizeStationName(boarding);
+  const destinationName = normalizeStationName(destination);
+  const bHalt = halts.find((h) => normalizeStationName(h.stationName) === boardingName);
+  const dHalt = halts.find((h) => normalizeStationName(h.stationName) === destinationName);
   if (!bHalt || !dHalt || dHalt.order <= bHalt.order) return null;
   return { boardingHalt: bHalt, destinationHalt: dHalt };
 }
@@ -158,6 +164,7 @@ module.exports = {
   fareForCoach,
   isAllowedCoachType,
   normalizeCoachType,
+  normalizeStationName,
   routeDistance,
   routeFare,
   findRouteHalts,

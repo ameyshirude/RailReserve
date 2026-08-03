@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const {
   fareForCoach,
   dateForHalt,
+  findRouteHalts,
   journeyDetails,
   routeDistance,
   serviceDateForBoarding,
@@ -15,6 +16,19 @@ const destination = { distance: 500 };
 
 test("travelled distance is the difference between cumulative halt distances", () => {
   assert.equal(routeDistance(middle, destination), 400);
+});
+
+test("route lookup ignores station casing and surrounding spaces", () => {
+  const halts = [
+    { stationName: "Mumbai Central", order: 1 },
+    { stationName: "Vadodara", order: 2 },
+    { stationName: "New Delhi", order: 3 },
+  ];
+
+  const route = findRouteHalts(halts, " mumbai central ", "NEW DELHI ");
+
+  assert.equal(route.boardingHalt.stationName, "Mumbai Central");
+  assert.equal(route.destinationHalt.stationName, "New Delhi");
 });
 
 test("fare uses the per-kilometre rate and coach multiplier", () => {

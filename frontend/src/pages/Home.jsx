@@ -339,8 +339,8 @@ export default function Home() {
       {selectedTrain && (
         <BookingFlowModal
           train={selectedTrain}
-          boarding={boarding}
-          destination={destination}
+          boarding={selectedTrain.boardingHalt?.stationName || boarding.trim()}
+          destination={selectedTrain.destinationHalt?.stationName || destination.trim()}
           travelDate={selectedTrain.serviceDate || travelDate}
           onClose={() => setSelectedTrain(null)}
         />
