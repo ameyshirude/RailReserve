@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import apiClient from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
 import BookingFlowModal from "../components/BookingFlowModal";
+import StationAutocomplete from "../components/StationAutocomplete";
 import { uniqueCoachFareOptions } from "../utils/coachDisplay";
 import "./Home.css";
 
@@ -34,6 +35,30 @@ export default function Home() {
   const [searchError,   setSearchError]  = useState("");
   const [selectedTrain, setSelectedTrain] = useState(null);
   const [travelDate,    setTravelDate]    = useState(todayInputValue());
+  const [stations,      setStations]      = useState([]);
+
+  // Fetch all station names on mount
+  useEffect(() => {
+    let cancelled = false;
+    async function loadStations() {
+      try {
+        const { data } = await apiClient.get("/stations");
+        if (!cancelled) setStations(data.stations);
+      } catch (err) {
+        console.error("Failed to load stations:", err);
+      }
+    }
+    loadStations();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Clear destination when boarding changes
+  const handleBoardingChange = (value) => {
+    setBoarding(value);
+    if (destination && value && destination.toLowerCase() === value.toLowerCase()) {
+      setDestination("");
+    }
+  };
 
   useEffect(() => {
     const pending = location.state?.pendingTrain;
@@ -90,6 +115,7 @@ export default function Home() {
 
   const handleSearch = async (e) => {
     e.preventDefault();
+    if (!boarding.trim() || !destination.trim()) return;
     setSearchError("");
     setSearched(false);
     setTrains([]);
@@ -142,39 +168,25 @@ export default function Home() {
             <form onSubmit={handleSearch} noValidate>
               <div className="row g-3">
                 <div className="col-md-4">
-                  <label
-                    htmlFor="boarding"
-                    className="form-label"
-                    style={{ fontFamily: "var(--font-mono)", fontSize: "0.80rem", fontStyle: "italic"}}
-                  >
-                    Boarding Station
-                  </label>
-                  <input
+                  <StationAutocomplete
                     id="boarding"
-                    type="text"
-                    className="form-control"
+                    label="Boarding Station"
                     value={boarding}
-                    onChange={(e) => setBoarding(e.target.value)}
-                    placeholder="e.g. Mumbai"
-                    required
+                    onChange={handleBoardingChange}
+                    placeholder="Enter boarding station"
+                    stations={stations}
                   />
                 </div>
                 <div className="col-md-4">
-                  <label
-                    htmlFor="destination"
-                    className="form-label"
-                    style={{ fontFamily: "var(--font-mono)", fontSize: "0.80rem", fontStyle: "italic"}}
-                  >
-                    Destination Station
-                  </label>
-                  <input
+                  <StationAutocomplete
                     id="destination"
-                    type="text"
-                    className="form-control"
+                    label="Destination Station"
                     value={destination}
-                    onChange={(e) => setDestination(e.target.value)}
-                    placeholder="e.g. Delhi"
-                    required
+                    onChange={setDestination}
+                    placeholder={boarding ? "Enter destination station" : "Enter destination station"}
+                    disabled={!boarding}
+                    stations={stations}
+                    excludeStation={boarding}
                   />
                 </div>
                 <div className="col-md-2">
@@ -199,7 +211,7 @@ export default function Home() {
                   <button
                     type="submit"
                     className="btn btn-amber w-100"
-                    disabled={searching}
+                    disabled={searching || !boarding || !destination}
                   >
                     {searching ? "Searching…" : "Search"}
                   </button>
@@ -348,3 +360,4 @@ export default function Home() {
     </div>
   );
 }
+

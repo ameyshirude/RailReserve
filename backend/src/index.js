@@ -11,6 +11,7 @@ const trainRoutes     = require("./routes/trainRoutes");
 const trainSearchRoutes = require("./routes/trainSearchRoutes");
 const bookingRoutes   = require("./routes/bookingRoutes");
 const webhookRoutes   = require("./routes/webhookRoutes");
+const stationRoutes   = require("./routes/stationRoutes");
 
 const app = express();
 
@@ -47,6 +48,7 @@ app.use("/api/auth",         authRoutes);
 app.use("/api",              dashboardRoutes);
 app.use("/api/admin/trains", trainRoutes);
 app.use("/api/trains",       trainSearchRoutes);
+app.use("/api/stations",     stationRoutes);
 app.use("/api/bookings",     bookingRoutes);
 
 app.use("/api", (req, res) => res.status(404).json({ message: "Not found." }));
