@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { toast } from "react-toastify";
 import apiClient from "../api/axiosClient";
 
 function PaymentStatusBadge({ status }) {
@@ -32,7 +33,6 @@ function PaymentStatusBadge({ status }) {
 
 export default function PassengerDetailModal({ booking, onClose, onRefund }) {
   const [refunding,    setRefunding]    = useState(false);
-  const [refundError,  setRefundError]  = useState("");
   const [refundSuccess, setRefundSuccess] = useState(false);
 
   if (!booking) return null;
@@ -51,14 +51,14 @@ export default function PassengerDetailModal({ booking, onClose, onRefund }) {
   };
 
   const handleRefund = async () => {
-    setRefundError("");
     setRefunding(true);
     try {
       const { data } = await apiClient.post("/bookings/refund", { bookingId: booking.id });
       setRefundSuccess(true);
+      toast.success("Refund processed successfully.");
       if (onRefund) onRefund(booking.id, data.payment);
     } catch (err) {
-      setRefundError(err.response?.data?.message || "Refund failed. Please try again.");
+      toast.error(err.response?.data?.message || "Refund failed. Please try again.");
     } finally {
       setRefunding(false);
     }
@@ -195,11 +195,7 @@ export default function PassengerDetailModal({ booking, onClose, onRefund }) {
                     {/* Refund controls */}
                     {booking.status != "CANCELLED" && booking.payment.status === "PAID" && !refundSuccess && (
                       <>
-                        {refundError && (
-                          <div className="alert alert-danger py-2 px-3 small mb-2">
-                            {refundError}
-                          </div>
-                        )}
+
                         <button
                           className="btn btn-sm btn-outline-danger"
                           onClick={handleRefund}

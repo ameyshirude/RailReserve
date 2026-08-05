@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { toast } from "react-toastify";
 import { useNavigate, Link } from "react-router-dom";
 import apiClient from "../api/axiosClient";
 import "./Auth.css";
@@ -13,7 +14,6 @@ const initialForm = {
 
 export default function Register() {
   const [form, setForm] = useState(initialForm);
-  const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
 
@@ -23,11 +23,10 @@ export default function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
 
     // Quick client-side check before hitting the API (server re-validates everything too).
     if (form.password !== form.confirmPassword) {
-      setError("Password and confirm password do not match.");
+      toast.error("Password and confirm password do not match.");
       return;
     }
 
@@ -38,7 +37,7 @@ export default function Register() {
         state: { successMessage: "Account created successfully. Please log in." },
       });
     } catch (err) {
-      setError(err.response?.data?.message || "Registration failed. Please try again.");
+      toast.error(err.response?.data?.message || "Registration failed. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -53,11 +52,6 @@ export default function Register() {
         </div>
         <div className="ticket-perforation" />
         <div className="ticket-card__body">
-          {error && (
-            <div className="alert alert-danger auth-error" role="alert">
-              {error}
-            </div>
-          )}
           <form onSubmit={handleSubmit} noValidate>
             <div className="mb-3">
               <label htmlFor="username" className="form-label">

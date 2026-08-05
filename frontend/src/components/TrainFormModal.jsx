@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { toast } from "react-toastify";
 import apiClient from "../api/axiosClient";
 
 const emptyHalt  = () => ({
@@ -39,7 +40,6 @@ export default function TrainFormModal({ show, train, onClose, onSaved }) {
   const [coaches,   setCoaches]   = useState([emptyCoach()]);
   const [runningDays, setRunningDays] = useState(ALL_DAYS);
   const [submitting, setSubmitting] = useState(false);
-  const [error,     setError]     = useState("");
 
   useEffect(() => {
     if (show && train) {
@@ -74,7 +74,7 @@ export default function TrainFormModal({ show, train, onClose, onSaved }) {
       setCoaches([emptyCoach()]);
       setRunningDays(ALL_DAYS);
     }
-    setError("");
+
   }, [show, train]);
 
   if (!show) return null;
@@ -93,7 +93,7 @@ export default function TrainFormModal({ show, train, onClose, onSaved }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
+
     setSubmitting(true);
     try {
       const normalizedHalts = halts.map((halt, i) => ({
@@ -108,7 +108,7 @@ export default function TrainFormModal({ show, train, onClose, onSaved }) {
       }
       onSaved();
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to save train.");
+      toast.error(err.response?.data?.message || "Failed to save train.");
     } finally {
       setSubmitting(false);
     }
@@ -150,7 +150,6 @@ export default function TrainFormModal({ show, train, onClose, onSaved }) {
             </div>
 
             <div className="modal-body">
-              {error && <div className="alert alert-danger">{error}</div>}
 
               <form onSubmit={handleSubmit} id="trainForm" noValidate>
                 {/* Basic info */}

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { toast } from "react-toastify";
 import apiClient from "../api/axiosClient";
 import TrainFormModal from "../components/TrainFormModal";
 
@@ -18,11 +19,9 @@ function formatRunningDays(value) {
 export default function TrainManagement() {
   const [trains, setTrains] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTrain, setEditingTrain] = useState(null); // null = create mode
   const [deleteId, setDeleteId] = useState(null);
-  const [deleteError, setDeleteError] = useState("");
 
   const fetchTrains = async () => {
     setLoading(true);
@@ -30,7 +29,7 @@ export default function TrainManagement() {
       const { data } = await apiClient.get("/admin/trains");
       setTrains(data.trains);
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to load trains.");
+      toast.error(err.response?.data?.message || "Failed to load trains.");
     } finally {
       setLoading(false);
     }
@@ -41,17 +40,18 @@ export default function TrainManagement() {
   const handleSaved = () => {
     setModalOpen(false);
     setEditingTrain(null);
+    toast.success("Train saved successfully.");
     fetchTrains();
   };
 
   const handleDelete = async (id) => {
-    setDeleteError("");
     try {
       await apiClient.delete(`/admin/trains/${id}`);
       setDeleteId(null);
+      toast.success("Train deleted successfully.");
       fetchTrains();
     } catch (err) {
-      setDeleteError(err.response?.data?.message || "Failed to delete train.");
+      toast.error(err.response?.data?.message || "Failed to delete train.");
     }
   };
 
@@ -72,7 +72,6 @@ export default function TrainManagement() {
         </button>
       </div>
 
-      {error && <div className="alert alert-danger">{error}</div>}
 
       {loading ? (
         <div className="text-center py-5">
@@ -140,7 +139,7 @@ export default function TrainManagement() {
                         </button>
                         <button
                           className="btn btn-sm btn-outline-danger"
-                          onClick={() => { setDeleteId(train.id); setDeleteError(""); }}
+                          onClick={() => { setDeleteId(train.id); }}
                         >
                           Delete
                         </button>
@@ -166,7 +165,7 @@ export default function TrainManagement() {
                 </div>
                 <div className="ticket-perforation" />
                 <div className="ticket-card__body">
-                  {deleteError && <div className="alert alert-danger small py-2">{deleteError}</div>}
+
                   <p className="text-muted mb-3">
                     This will permanently delete the train and all associated coaches, halts, and bookings.
                   </p>

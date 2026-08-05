@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { toast } from "react-toastify";
 import { useNavigate, useLocation } from "react-router-dom";
 import apiClient from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
@@ -32,7 +33,6 @@ export default function Home() {
   const [trains,        setTrains]       = useState([]);
   const [searched,      setSearched]     = useState(false);
   const [searching,     setSearching]    = useState(false);
-  const [searchError,   setSearchError]  = useState("");
   const [selectedTrain, setSelectedTrain] = useState(null);
   const [travelDate,    setTravelDate]    = useState(todayInputValue());
   const [stations,      setStations]      = useState([]);
@@ -71,7 +71,6 @@ export default function Home() {
       setBoarding(pending.boarding);
       setDestination(pending.destination);
       setTravelDate(nextTravelDate);
-      setSearchError("");
       setSearching(true);
 
       try {
@@ -94,7 +93,7 @@ export default function Home() {
         if (!cancelled) {
           setTrains([]);
           setSearched(true);
-          setSearchError(
+          toast.error(
             err.response?.data?.message || "Search failed. Please try again."
           );
         }
@@ -116,7 +115,6 @@ export default function Home() {
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!boarding.trim() || !destination.trim()) return;
-    setSearchError("");
     setSearched(false);
     setTrains([]);
     setSearching(true);
@@ -131,7 +129,7 @@ export default function Home() {
       setTrains(data.trains);
       setSearched(true);
     } catch (err) {
-      setSearchError(err.response?.data?.message || "Search failed. Please try again.");
+      toast.error(err.response?.data?.message || "Search failed. Please try again.");
     } finally {
       setSearching(false);
     }
@@ -218,9 +216,6 @@ export default function Home() {
                 </div>
               </div>
             </form>
-            {searchError && (
-              <div className="alert alert-danger mt-3 mb-0">{searchError}</div>
-            )}
           </div>
         </div>
 

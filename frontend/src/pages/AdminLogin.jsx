@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import apiClient from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
@@ -6,7 +7,6 @@ import "./Auth.css";
 
 export default function AdminLogin() {
   const [form, setForm] = useState({ username: "", password: "" });
-  const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const { setUser } = useAuth();
   const navigate = useNavigate();
@@ -17,14 +17,13 @@ export default function AdminLogin() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
     setSubmitting(true);
     try {
       const { data } = await apiClient.post("/auth/admin-login", form);
       setUser(data.user);
       navigate("/admin-dashboard");
     } catch (err) {
-      setError(err.response?.data?.message || "Admin login failed. Please try again.");
+      toast.error(err.response?.data?.message || "Admin login failed. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -39,11 +38,6 @@ export default function AdminLogin() {
         </div>
         <div className="ticket-perforation" />
         <div className="ticket-card__body">
-          {error && (
-            <div className="alert alert-danger auth-error" role="alert">
-              {error}
-            </div>
-          )}
           <form onSubmit={handleSubmit} noValidate>
             <div className="mb-3">
               <label htmlFor="username" className="form-label">

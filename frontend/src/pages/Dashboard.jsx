@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { toast } from "react-toastify";
 import { Link } from "react-router-dom";
 import apiClient from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
@@ -293,14 +294,13 @@ export default function Dashboard() {
   const { user }     = useAuth();
   const [bookings,   setBookings]  = useState([]);
   const [loading,    setLoading]   = useState(true);
-  const [error,      setError]     = useState("");
 
   useEffect(() => {
     apiClient
       .get("/bookings/my")
       .then(({ data }) => setBookings(data.bookings))
       .catch((err) =>
-        setError(err.response?.data?.message || "Could not load bookings.")
+        toast.error(err.response?.data?.message || "Could not load bookings.")
       )
       .finally(() => setLoading(false));
   }, []);
@@ -328,7 +328,6 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      {error && <div className="alert alert-danger">{error}</div>}
 
       {loading ? (
         <div className="text-center py-5">

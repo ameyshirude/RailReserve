@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { toast } from "react-toastify";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import apiClient from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
@@ -6,12 +7,18 @@ import "./Auth.css";
 
 export default function Login() {
   const [form, setForm] = useState({ username: "", password: "" });
-  const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const { setUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const successMessage = location.state?.successMessage;
+  useEffect(() => {
+    const successMessage = location.state?.successMessage;
+    if (successMessage) {
+      toast.success(successMessage);
+      // Clear navigation state so the toast doesn't re-fire on refresh
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate, location.pathname]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -19,7 +26,6 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
     setSubmitting(true);
     try {
       const { data } = await apiClient.post("/auth/login", form);
@@ -35,7 +41,7 @@ export default function Login() {
         navigate("/dashboard");
       }
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed. Please try again.");
+      toast.error(err.response?.data?.message || "Login failed. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -50,16 +56,6 @@ export default function Login() {
         </div>
         <div className="ticket-perforation" />
         <div className="ticket-card__body">
-          {successMessage && (
-            <div className="alert alert-success auth-error" role="alert">
-              {successMessage}
-            </div>
-          )}
-          {error && (
-            <div className="alert alert-danger auth-error" role="alert">
-              {error}
-            </div>
-          )}
           <form onSubmit={handleSubmit} noValidate>
             <div className="mb-3">
               <label htmlFor="username" className="form-label">

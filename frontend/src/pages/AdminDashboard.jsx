@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { toast } from "react-toastify";
 import { Link } from "react-router-dom";
 import apiClient from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
@@ -7,7 +8,6 @@ import BookingsModal from "../components/BookingsModal";
 export default function AdminDashboard() {
   const { user } = useAuth();
   const [data, setData] = useState(null);
-  const [error, setError] = useState("");
   const [bookingsOpen, setBookingsOpen] = useState(false);
   const [bookings, setBookings] = useState([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
@@ -17,7 +17,7 @@ export default function AdminDashboard() {
       .get("/admin/dashboard")
       .then((res) => setData(res.data))
       .catch((err) =>
-        setError(err.response?.data?.message || "Could not load admin dashboard.")
+        toast.error(err.response?.data?.message || "Could not load admin dashboard.")
       );
   }, []);
 
@@ -59,7 +59,6 @@ export default function AdminDashboard() {
         </Link>
       </div>
 
-      {error && <div className="alert alert-danger">{error}</div>}
 
       <div className="row g-3 mb-4">
         {statCards.map(({ label, value, clickable, onClick }) => (

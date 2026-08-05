@@ -7,6 +7,7 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
+import { toast } from "react-toastify";
 import apiClient from "../api/axiosClient";
 
 // Initializing Stripe
@@ -47,12 +48,11 @@ function PaymentForm({ amount, bookingId, onSuccess }) {
   const stripe   = useStripe();
   const elements = useElements();
   const [paying,              setPaying]              = useState(false);
-  const [payError,            setPayError]            = useState("");
   const [paymentElementReady, setPaymentElementReady] = useState(false);
 
   const handlePay = async () => {
     if (!stripe || !elements || !paymentElementReady) return;
-    setPayError("");
+
     setPaying(true);
 
     let result;
@@ -66,7 +66,7 @@ function PaymentForm({ amount, bookingId, onSuccess }) {
         redirect: "if_required", // for standard card payments
       });
     } catch (err) {
-      setPayError(err.message || "Payment form is still loading. Please try again.");
+      toast.error(err.message || "Payment form is still loading. Please try again.");
       setPaying(false);
       return;
     }
@@ -74,7 +74,7 @@ function PaymentForm({ amount, bookingId, onSuccess }) {
     const { error, paymentIntent } = result;
 
     if (error) {
-      setPayError(error.message);
+      toast.error(error.message);
       setPaying(false);
       return;
     }
@@ -87,13 +87,11 @@ function PaymentForm({ amount, bookingId, onSuccess }) {
         });
         onSuccess();
       } catch (err) {
-        setPayError(
-          err.response?.data?.message || "Payment verified but server update failed."
-        );
+        toast.error(err.response?.data?.message || "Payment verified but server update failed.");
         setPaying(false);
       }
     } else {
-      setPayError("Payment was not completed. Please try again.");
+      toast.error("Payment was not completed. Please try again.");
       setPaying(false);
     }
   };
@@ -103,14 +101,10 @@ function PaymentForm({ amount, bookingId, onSuccess }) {
       <PaymentElement
         onReady={() => setPaymentElementReady(true)}
         onLoadError={(event) => {
-          setPayError(event.error?.message || "Payment form failed to load. Try refreshing the page."); 
+          toast.error(event.error?.message || "Payment form failed to load. Try refreshing the page."); 
         }}
       />
-      {payError && (
-        <div className="alert alert-danger mt-3 mb-0" style={{ fontSize: "0.88rem" }}>
-          {payError}
-        </div>
-      )}
+
       <button
         type="button"
         className="btn btn-amber w-100 mt-3"
@@ -247,17 +241,17 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
   // coach selection state
   const [coaches,       setCoaches]       = useState([]);
   const [loadingCoaches, setLoadingCoaches] = useState(true);
-  const [coachError,    setCoachError]    = useState("");
+
   const [selectedCoach, setSelectedCoach] = useState(null);
   const [passengerCount, setPassengerCount] = useState(1);
-  const [reserveError,  setReserveError]  = useState("");
+
   const [reserving,     setReserving]     = useState(false);
 
   // details state
   const [reservation,  setReservation]  = useState(null);
   const [passengers,   setPassengers]   = useState([]);
   const [secondsLeft,  setSecondsLeft]  = useState(600);
-  const [confirmError, setConfirmError] = useState("");
+
   const [confirming,   setConfirming]   = useState(false);
   const timerRef = useRef(null);
 
@@ -278,7 +272,7 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
         params: { date: travelDate, boarding, destination },
       })
       .then(({ data }) => { if (!cancelled) setCoaches(data.coaches); })
-      .catch(() => { if (!cancelled) setCoachError("Failed to load coach availability."); })
+      .catch(() => { if (!cancelled) toast.error("Failed to load coach availability."); })
       .finally(() => { if (!cancelled) setLoadingCoaches(false); });
     return () => { cancelled = true; };
   }, [train.id, travelDate, boarding, destination]);
@@ -305,7 +299,7 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
 
   const handleReserve = async () => {
     if (!selectedCoach) return;
-    setReserveError("");
+
     setReserving(true);
     try {
       const { data } = await apiClient.post("/bookings/reserve", {
@@ -317,8 +311,8 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
       setPassengers(Array.from({ length: passengerCount }, () => ({ name: "", age: "" })));
       setStep(2);
     } catch (err) {
-      setReserveError(
-        err.response?.data?.message || "Could not reserve seats. Please try again."
+      toast.error(
+        err.response?.data?.message || "Failed to reserve seats. Please try again."
       );
     } finally {
       setReserving(false);
@@ -332,10 +326,10 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
 
   const handleProceedToPayment = async () => {
     if (secondsLeft === 0) {
-      setConfirmError("Session expired. Please go back and select seats again.");
+      toast.error("Session expired. Please go back and select seats again.");
       return;
     }
-    setConfirmError("");
+
     setConfirming(true);
     try {
       const { data } = await apiClient.post("/bookings/confirm", {
@@ -360,8 +354,8 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
         setStep(4);
       }
     } catch (err) {
-      setConfirmError(
-        err.response?.data?.message || "Booking failed. Please try again."
+      toast.error(
+        err.response?.data?.message || "Failed to confirm booking. Please try again."
       );
     } finally {
       setConfirming(false);
@@ -471,7 +465,7 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                       />
                     </div>
                   )}
-                  {coachError && <div className="alert alert-danger">{coachError}</div>}
+
 
                   {!loadingCoaches && coaches.length === 0 && (
                     <p className="text-muted text-center py-3">
@@ -578,9 +572,7 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                         </>
                       )}
 
-                      {reserveError && (
-                        <div className="alert alert-danger">{reserveError}</div>
-                      )}
+
 
                       <button
                         className="btn btn-amber w-100"
@@ -696,9 +688,7 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                     </div>
                   )}
 
-                  {confirmError && (
-                    <div className="alert alert-danger mt-3">{confirmError}</div>
-                  )}
+
 
                   <div className="d-flex gap-2 mt-3">
                     <button
@@ -707,7 +697,7 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                         clearInterval(timerRef.current);
                         setStep(1);
                         setReservation(null);
-                        setReserveError("");
+
                       }}
                     >
                       ← Back
