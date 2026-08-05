@@ -1,9 +1,11 @@
 require("dotenv").config();
 const express = require("express");
+const helmet = require("helmet");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const prisma = require("./prismaClient");
 const { createUniquePnr } = require("./utils/bookingPresenter");
+const { authLimiter, bookingLimiter } = require("./middleware/rateLimiter");
 
 const authRoutes      = require("./routes/authRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
@@ -14,6 +16,8 @@ const webhookRoutes   = require("./routes/webhookRoutes");
 const stationRoutes   = require("./routes/stationRoutes");
 
 const app = express();
+
+app.use(helmet());
 
 const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:3000")
   .split(",")
@@ -44,12 +48,12 @@ app.options("*", cors(corsOptions));
 
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 
-app.use("/api/auth",         authRoutes);
+app.use("/api/auth",         authLimiter, authRoutes);
 app.use("/api",              dashboardRoutes);
 app.use("/api/admin/trains", trainRoutes);
 app.use("/api/trains",       trainSearchRoutes);
 app.use("/api/stations",     stationRoutes);
-app.use("/api/bookings",     bookingRoutes);
+app.use("/api/bookings",     bookingLimiter, bookingRoutes);
 
 app.use("/api", (req, res) => res.status(404).json({ message: "Not found." }));
 
