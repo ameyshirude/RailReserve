@@ -64,6 +64,7 @@ model Halt {
   train         Train   @relation(fields: [trainId], references: [id], onDelete: Cascade)
 
   @@unique([trainId, order])
+  @@index([stationName])
   @@map("halts")
 }
 
@@ -93,6 +94,7 @@ model Reservation {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   coach       Coach    @relation(fields: [coachId], references: [id], onDelete: Cascade)
 
+  @@index([expiresAt])
   @@map("reservations")
 }
 
@@ -114,6 +116,7 @@ model Booking {
   passengers     BookingSeat[]
   payment        Payment?
 
+  @@index([userId, travelDate, status])
   @@map("bookings")
 }
 
@@ -127,6 +130,7 @@ model BookingSeat {
   booking       Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   coach         Coach   @relation(fields: [coachId], references: [id], onDelete: Cascade)
 
+  @@index([coachId, seatNumber])
   @@map("booking_seats")
 }
 
