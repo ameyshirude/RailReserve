@@ -48,9 +48,26 @@ async function register(req, res) {
       return res.status(400).json({ message: errors[0], errors });
     }
 
-    const existing = await prisma.user.findUnique({ where: { username } });
+    const existing = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { username },
+          { email },
+          { phone }
+        ]
+      }
+    });
+
     if (existing) {
-      return res.status(409).json({ message: "That username is already exists. Try another!" });
+      if (existing.username === username) {
+        return res.status(409).json({ message: "That username already exists. Try another!" });
+      }
+      if (existing.email === email) {
+        return res.status(409).json({ message: "That email is already registered." });
+      }
+      if (existing.phone === phone) {
+        return res.status(409).json({ message: "That phone number is already registered." });
+      }
     }
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);

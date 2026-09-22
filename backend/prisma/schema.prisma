@@ -28,8 +28,8 @@ model User {
   id           Int           @id @default(autoincrement())
   username     String        @unique
   passwordHash String
-  email        String
-  phone        String
+  email        String        @unique
+  phone        String        @unique
   role         Role          @default(USER)
   createdAt    DateTime      @default(now())
   bookings     Booking[]
