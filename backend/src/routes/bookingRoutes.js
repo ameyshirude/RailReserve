@@ -343,12 +343,21 @@ router.post("/refund", requireAuth, requireRole("ADMIN"), async (req, res) => {
       await stripe.refunds.create({ payment_intent: payment.stripePaymentId });
     }
 
-    const updated = await prisma.payment.update({
-      where: { bookingId: Number(bookingId) },
-      data:  { status: "REFUNDED" },
-    });
+    const [updatedPayment] = await prisma.$transaction([
+      prisma.payment.update({
+        where: { bookingId: Number(bookingId) },
+        data:  { status: "REFUNDED" },
+      }),
+      prisma.booking.update({
+        where: { id: Number(bookingId) },
+        data:  { status: "CANCELLED" },
+      }),
+      prisma.bookingSeat.deleteMany({
+        where: { bookingId: Number(bookingId) },
+      })
+    ]);
 
-    res.json({ payment: updated, message: "Refund processed successfully." });
+    res.json({ payment: updatedPayment, message: "Refund processed successfully." });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to process refund." });

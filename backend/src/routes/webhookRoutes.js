@@ -50,6 +50,9 @@ router.post("/", async (req, res) => {
             prisma.booking.updateMany({
               where: { id: Number(pi.metadata.bookingId) },
               data:  { status: "CANCELLED" },
+            }),
+            prisma.bookingSeat.deleteMany({
+              where: { bookingId: Number(pi.metadata.bookingId) },
             })
           ]);
         }
@@ -59,10 +62,19 @@ router.post("/", async (req, res) => {
       case "charge.refunded": {
         const charge = event.data.object;
         if (charge.payment_intent) {
-          await prisma.payment.updateMany({
-            where: { stripePaymentId: charge.payment_intent },
-            data:  { status: "REFUNDED" },
-          });
+          await prisma.$transaction([
+            prisma.payment.updateMany({
+              where: { stripePaymentId: charge.payment_intent },
+              data:  { status: "REFUNDED" },
+            }),
+            prisma.booking.updateMany({
+              where: { payment: { stripePaymentId: charge.payment_intent } },
+              data:  { status: "CANCELLED" },
+            }),
+            prisma.bookingSeat.deleteMany({
+              where: { booking: { payment: { stripePaymentId: charge.payment_intent } } },
+            })
+          ]);
         }
         break;
       }
