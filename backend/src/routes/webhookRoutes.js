@@ -25,10 +25,16 @@ router.post("/", async (req, res) => {
       case "payment_intent.succeeded": {
         const pi = event.data.object;
         if (pi.metadata?.bookingId) {
-          await prisma.payment.updateMany({
-            where: { bookingId: Number(pi.metadata.bookingId), status: "PENDING" },
-            data:  { status: "PAID" },
-          });
+          await prisma.$transaction([
+            prisma.payment.updateMany({
+              where: { bookingId: Number(pi.metadata.bookingId), status: "PENDING" },
+              data:  { status: "PAID" },
+            }),
+            prisma.booking.updateMany({
+              where: { id: Number(pi.metadata.bookingId), status: "PENDING" },
+              data:  { status: "CONFIRMED" },
+            })
+          ]);
         }
         break;
       }
@@ -36,10 +42,16 @@ router.post("/", async (req, res) => {
       case "payment_intent.payment_failed": {
         const pi = event.data.object;
         if (pi.metadata?.bookingId) {
-          await prisma.payment.updateMany({
-            where: { bookingId: Number(pi.metadata.bookingId) },
-            data:  { status: "FAILED" },
-          });
+          await prisma.$transaction([
+            prisma.payment.updateMany({
+              where: { bookingId: Number(pi.metadata.bookingId) },
+              data:  { status: "FAILED" },
+            }),
+            prisma.booking.updateMany({
+              where: { id: Number(pi.metadata.bookingId) },
+              data:  { status: "CANCELLED" },
+            })
+          ]);
         }
         break;
       }

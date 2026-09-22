@@ -19,6 +19,7 @@ enum PaymentStatus {
 }
 
 enum BookingStatus {
+  PENDING
   CONFIRMED
   CANCELLED
 }
@@ -104,7 +105,7 @@ model Booking {
   boarding       String
   destination    String
   travelDate     DateTime?
-  status         BookingStatus @default(CONFIRMED)
+  status         BookingStatus @default(PENDING)
   cancelledSeats String?
   bookedAt       DateTime      @default(now())
   user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)

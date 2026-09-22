@@ -60,7 +60,7 @@ router.post("/reserve", requireAuth, requireRole("USER"), async (req, res) => {
         where:  {
           coachId: Number(coachId),
           booking: {
-            status: "CONFIRMED",
+            status: { in: ["CONFIRMED", "PENDING"] },
             travelDate: { gte: start, lt: end },
           },
         },
@@ -190,6 +190,7 @@ router.post("/confirm", requireAuth, requireRole("USER"), async (req, res) => {
           boarding,
           destination,
           travelDate:  reservation.travelDate,
+          status:      "PENDING",
           passengers: {
             create: passengers.map((p, i) => ({
               coachId:       reservation.coachId,
@@ -261,6 +262,12 @@ router.post("/confirm", requireAuth, requireRole("USER"), async (req, res) => {
       },
     });
 
+    await prisma.booking.update({
+      where: { id: booking.id },
+      data: { status: "CONFIRMED" },
+    });
+    booking.status = "CONFIRMED";
+
     return res.status(201).json({
       booking: { ...booking, payment, stripeId: payment.stripePaymentId },
       clientSecret:    null,
@@ -296,12 +303,18 @@ router.post("/verify-payment", requireAuth, requireRole("USER"), async (req, res
     });
     if (!booking) return res.status(404).json({ message: "Booking not found." });
 
-    const updated = await prisma.payment.update({
-      where: { bookingId: Number(bookingId) },
-      data:  { status: "PAID" },
-    });
+    const [updatedPayment, updatedBooking] = await prisma.$transaction([
+      prisma.payment.update({
+        where: { bookingId: Number(bookingId) },
+        data:  { status: "PAID" },
+      }),
+      prisma.booking.update({
+        where: { id: Number(bookingId) },
+        data:  { status: "CONFIRMED" },
+      })
+    ]);
 
-    res.json({ payment: updated });
+    res.json({ payment: updatedPayment });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to verify payment." });

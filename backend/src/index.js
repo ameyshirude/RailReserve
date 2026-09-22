@@ -64,46 +64,26 @@ app.use((err, req, res, next) => {
 
 setInterval(async () => {
   try {
-    const expired = await prisma.reservation.findMany({
-      where:   { expiresAt: { lte: new Date() } },
-      include: { coach: true },
+    // removing  th expired reservations
+    const delRes = await prisma.reservation.deleteMany({
+      where: { expiresAt: { lte: new Date() } },
     });
-
-    if (expired.length === 0) return;
-
-    let cancelledCount = 0;
-    for (const r of expired) {
-      try {
-        await prisma.$transaction(async (tx) => {
-          const del = await tx.reservation.deleteMany({
-            where: { id: r.id, expiresAt: { lte: new Date() } },
-          });
-          if (del.count === 0) return;
-
-          await tx.booking.create({
-            data: {
-              pnr:            await createUniquePnr(tx),
-              userId:         r.userId,
-              trainId:        r.coach.trainId,
-              coachId:        r.coachId,
-              boarding:       "Expired reservation",
-              destination:    "Expired reservation",
-              travelDate:     r.travelDate,
-              status:         "CANCELLED",
-              cancelledSeats: r.seatNumbers,
-            },
-          });
-          cancelledCount++;
-        });
-      } catch (err) {
-        console.error(`[cleanup] Failed to process reservation ${r.id}:`, err.message);
-      }
+    if (delRes.count > 0) {
+      console.log(`[cleanup] Deleted ${delRes.count} expired reservation(s).`);
     }
 
-    if (cancelledCount > 0) {
-      console.log(
-        `[cleanup] Released and marked ${cancelledCount} expired reservation(s) as CANCELLED.`
-      );
+    // removing more than 15 min bookings
+    const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000);
+    const delBookings = await prisma.booking.updateMany({
+      where: {
+        status: "PENDING",
+        bookedAt: { lte: fifteenMinsAgo },
+      },
+      data: { status: "CANCELLED" },
+    });
+    
+    if (delBookings.count > 0) {
+      console.log(`[cleanup] Cancelled ${delBookings.count} expired PENDING booking(s).`);
     }
   } catch (err) {
     console.error("[cleanup] error:", err.message);

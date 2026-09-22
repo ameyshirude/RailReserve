@@ -102,7 +102,7 @@ router.get("/:id/coaches", requireAuth, requireRole("USER"), async (req, res) =>
             bookingSeats: {
               where: {
                 booking: {
-                  status: "CONFIRMED",
+                  status: { in: ["CONFIRMED", "PENDING"] },
                   travelDate: { gte: start, lt: end },
                 },
               },
