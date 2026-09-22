@@ -6,10 +6,7 @@ const { validateRegistration, validateLogin } = require("../utils/validators");
 const SALT_ROUNDS = 12;
 
 function cookieOptions({ clear = false } = {}) {
-  const sameSite = (
-    process.env.COOKIE_SAME_SITE ||
-    (process.env.NODE_ENV === "production" ? "none" : "lax")
-  ).toLowerCase();
+  const sameSite = (process.env.COOKIE_SAME_SITE || "lax").toLowerCase();
 
   const secure =
     process.env.COOKIE_SECURE === undefined
