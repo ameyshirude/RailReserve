@@ -5,7 +5,7 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const prisma = require("./prismaClient");
 const { createUniquePnr } = require("./utils/bookingPresenter");
-const { authLimiter, bookingLimiter } = require("./middleware/rateLimiter");
+const { bookingLimiter } = require("./middleware/rateLimiter");
 
 const authRoutes      = require("./routes/authRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
@@ -48,7 +48,7 @@ app.options("*", cors(corsOptions));
 
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 
-app.use("/api/auth",         authLimiter, authRoutes);
+app.use("/api/auth",         authRoutes);
 app.use("/api",              dashboardRoutes);
 app.use("/api/admin/trains", trainRoutes);
 app.use("/api/trains",       trainSearchRoutes);
