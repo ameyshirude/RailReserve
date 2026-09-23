@@ -5,6 +5,7 @@ import apiClient from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
 import BookingFlowModal from "../components/BookingFlowModal";
 import StationAutocomplete from "../components/StationAutocomplete";
+import { TrainSkeleton } from "../components/SkeletonLoaders";
 import { uniqueCoachFareOptions } from "../utils/coachDisplay";
 import "./Home.css";
 
@@ -219,8 +220,17 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Loading Skeletons */}
+        {searching && (
+          <div className="d-flex flex-column gap-3">
+            {[1, 2, 3].map((i) => (
+              <TrainSkeleton key={i} />
+            ))}
+          </div>
+        )}
+
         {/* Empty result  */}
-        {searched && trains.length === 0 && (
+        {searched && !searching && trains.length === 0 && (
           <div className="ticket-card">
             <div className="ticket-card__body text-center py-4 text-muted">
               No trains found between <strong>{boarding}</strong> and{" "}
@@ -230,7 +240,7 @@ export default function Home() {
         )}
 
         {/* Train results */}
-        {trains.length > 0 && (
+        {!searching && trains.length > 0 && (
           <>
             <h2 className="font-display mb-3" style={{ fontSize: "1.2rem" }}>
               {trains.length} Train{trains.length !== 1 ? "s" : ""} Found

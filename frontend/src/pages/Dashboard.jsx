@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import apiClient from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
 import { downloadReceipt } from "../components/BookingFlowModal";
+import { BookingSkeleton } from "../components/SkeletonLoaders";
 
 function formatBookingDate(iso) {
   return new Date(iso).toLocaleString("en-IN", {
@@ -330,12 +331,13 @@ export default function Dashboard() {
 
 
       {loading ? (
-        <div className="text-center py-5">
-          <div
-            className="spinner-border"
-            role="status"
-            style={{ color: "var(--color-amber)" }}
-          />
+        <div className="d-flex flex-column gap-4">
+          <section>
+            <div className="placeholder col-3 rounded mb-3" style={{ height: "1.5rem" }}></div>
+            {[1, 2].map((i) => (
+              <BookingSkeleton key={i} />
+            ))}
+          </section>
         </div>
       ) : bookings.length === 0 ? (
         <div className="ticket-card">

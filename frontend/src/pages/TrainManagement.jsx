@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import apiClient from "../api/axiosClient";
 import TrainFormModal from "../components/TrainFormModal";
+import { TableSkeleton } from "../components/SkeletonLoaders";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -74,9 +75,7 @@ export default function TrainManagement() {
 
 
       {loading ? (
-        <div className="text-center py-5">
-          <div className="spinner-border" style={{ color: "var(--color-amber)" }} role="status" />
-        </div>
+        <TableSkeleton columns={7} rows={4} />
       ) : trains.length === 0 ? (
         <div className="ticket-card">
           <div className="ticket-card__body text-center py-5">

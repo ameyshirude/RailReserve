@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import apiClient from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
 import BookingsModal from "../components/BookingsModal";
+import { StatCardSkeleton } from "../components/SkeletonLoaders";
 
 export default function AdminDashboard() {
   const { user } = useAuth();
@@ -61,24 +62,34 @@ export default function AdminDashboard() {
 
 
       <div className="row g-3 mb-4">
-        {statCards.map(({ label, value, clickable, onClick }) => (
-          <div className="col-12 col-md-4" key={label}>
-            <div
-              className="ticket-card p-3 text-center"
-              onClick={clickable ? onClick : undefined}
-              style={clickable ? { cursor: "pointer" } : undefined}
-              title={clickable ? `Click to view ${label}` : undefined}
-            >
-              <div className="font-mono fs-3">{value}</div>
-              <div className="text-muted small text-uppercase">{label}</div>
-              {clickable && (
-                <div style={{ fontSize: "0.80rem", color: "var(--color-navy-blue)", marginTop: "0.3rem" }}>
-                  Click to view ›
-                </div>
-              )}
+        {!data ? (
+          <>
+            {[1, 2, 3].map((i) => (
+              <div className="col-12 col-md-4" key={i}>
+                <StatCardSkeleton />
+              </div>
+            ))}
+          </>
+        ) : (
+          statCards.map(({ label, value, clickable, onClick }) => (
+            <div className="col-12 col-md-4" key={label}>
+              <div
+                className="ticket-card p-3 text-center"
+                onClick={clickable ? onClick : undefined}
+                style={clickable ? { cursor: "pointer" } : undefined}
+                title={clickable ? `Click to view ${label}` : undefined}
+              >
+                <div className="font-mono fs-3">{value}</div>
+                <div className="text-muted small text-uppercase">{label}</div>
+                {clickable && (
+                  <div style={{ fontSize: "0.80rem", color: "var(--color-navy-blue)", marginTop: "0.3rem" }}>
+                    Click to view ›
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       <div className="ticket-card">
