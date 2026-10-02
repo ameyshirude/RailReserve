@@ -93,6 +93,12 @@
   font-weight: 600;
 }
 
+.station-autocomplete__item--active {
+  background-color: var(--color-amber);
+  color: var(--color-ink);
+  outline: none;
+}
+
 .station-autocomplete__item--empty {
   color: var(--color-ink-soft);
   font-style: italic;
