@@ -62,7 +62,7 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: "Internal server error." });
 });
 
-setInterval(async () => {
+const cleanupInterval = setInterval(async () => {
   try {
     // removing  th expired reservations
     const delRes = await prisma.reservation.deleteMany({
@@ -91,6 +91,39 @@ setInterval(async () => {
 }, 60 * 1000);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () =>
+const server = app.listen(PORT, () =>
   console.log(`Railway reservation API listening on http://localhost:${PORT}`)
 );
+
+// Graceful shutdown — drain connections and stop background jobs on deploy/restart
+async function gracefulShutdown(signal) {
+  console.log(`\n[shutdown] ${signal} received. Shutting down gracefully…`);
+
+  clearInterval(cleanupInterval);
+
+  server.close(async () => {
+    console.log("[shutdown] HTTP server closed.");
+    try {
+      await prisma.$disconnect();
+      console.log("[shutdown] Prisma disconnected.");
+    } catch (err) {
+      console.error("[shutdown] Prisma disconnect error:", err.message);
+    }
+    try {
+      await prisma.$pool.end();
+      console.log("[shutdown] pg pool drained.");
+    } catch (err) {
+      console.error("[shutdown] pg pool drain error:", err.message);
+    }
+    process.exit(0);
+  });
+
+  // Force exit if graceful shutdown takes too long
+  setTimeout(() => {
+    console.error("[shutdown] Forced exit after 10s timeout.");
+    process.exit(1);
+  }, 10_000).unref();
+}
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT",  () => gracefulShutdown("SIGINT"));

@@ -227,12 +227,26 @@ router.post("/confirm", requireAuth, requireRole("USER"), async (req, res) => {
     const totalAmount = routeFare * booking.passengers.length;
 
     if (totalAmount > 0) {
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount:   Math.round(totalAmount * 100),
-        currency: "inr",
-        metadata: { bookingId: String(booking.id) },
-        automatic_payment_methods: { enabled: true },
-      });
+      let paymentIntent;
+      try {
+        paymentIntent = await stripe.paymentIntents.create({
+          amount:   Math.round(totalAmount * 100),
+          currency: "inr",
+          metadata: { bookingId: String(booking.id) },
+          automatic_payment_methods: { enabled: true },
+        });
+      } catch (stripeErr) {
+        // Stripe call failed — roll back the booking so seats are released
+        await prisma.$transaction([
+          prisma.bookingSeat.deleteMany({ where: { bookingId: booking.id } }),
+          prisma.booking.update({
+            where: { id: booking.id },
+            data:  { status: "CANCELLED" },
+          }),
+        ]);
+        console.error("Stripe paymentIntent creation failed:", stripeErr.message);
+        return res.status(502).json({ message: "Payment service unavailable. Please try again." });
+      }
 
       const payment = await prisma.payment.create({
         data: {
