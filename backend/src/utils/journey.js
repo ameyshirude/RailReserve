@@ -78,16 +78,37 @@ function formatDuration(totalMinutes) {
   return `${hours}h ${minutes}m`;
 }
 
+//distance slabs
+const DISTANCE_SLABS = [
+  { upTo: 50,   ratePerKm: 0.55 },
+  { upTo: 200,  ratePerKm: 0.45 },
+  { upTo: 500,  ratePerKm: 0.35 },
+  { upTo: 1000, ratePerKm: 0.30 },
+  { upTo: Infinity, ratePerKm: 0.25 },
+];
+
+// class multipliers
 const COACH_FARE_MULTIPLIERS = {
-  SL: 1,
-  "3A": 1.8,
-  "2A": 2.2,
-  "1A": 3.2,
+  SL:   1,
+  "3A": 2.8,
+  "2A": 4.2,
+  "1A": 6.5,
 };
 
-const BASE_RATE_PER_KM = 0.55;
+// fix reserve class fees
+const RESERVATION_FEES = {
+  SL:   20,
+  "3A": 40,
+  "2A": 50,
+  "1A": 60,
+};
+
+// GST rate for ac calss— 5%
+const GST_RATE = 0.05;
+const GST_APPLICABLE_CLASSES = ["3A", "2A", "1A"];
+
 const MINIMUM_FARES = {
-  SL: 120,
+  SL:   120,
   "3A": 430,
   "2A": 670,
   "1A": 1050,
@@ -110,8 +131,21 @@ function fareForCoach(baseFare, coachName) {
   const normalizedCoachType = normalizeCoachType(coachName);
   const multiplier = COACH_FARE_MULTIPLIERS[normalizedCoachType] || 1;
   const minimumFare = MINIMUM_FARES[normalizedCoachType] || MINIMUM_FARES.SL;
-  const calculatedFare = (Number(baseFare) || 0) * multiplier;
-  return Math.round(Math.max(calculatedFare, minimumFare) * 100) / 100;
+  const reservationFee = RESERVATION_FEES[normalizedCoachType] || RESERVATION_FEES.SL;
+
+  // Apply class multiplier to the basic fare
+  let fare = Math.max((Number(baseFare) || 0) * multiplier, minimumFare);
+
+  // Added fixed reservation fee
+  fare += reservationFee;
+
+  // Applying  5% GST for AC classes
+  if (GST_APPLICABLE_CLASSES.includes(normalizedCoachType)) {
+    fare *= (1 + GST_RATE);
+  }
+
+  // Round to nearest ₹5
+  return Math.round(fare / 5) * 5;
 }
 
 function routeDistance(boardingHalt, destinationHalt) {
@@ -120,8 +154,23 @@ function routeDistance(boardingHalt, destinationHalt) {
   return Math.max(0, destinationDistance - boardingDistance);
 }
 
+// rate decrease per km
 function routeFare(boardingHalt, destinationHalt) {
-  return routeDistance(boardingHalt, destinationHalt) * BASE_RATE_PER_KM;
+  const distance = routeDistance(boardingHalt, destinationHalt);
+  let fare = 0;
+  let remaining = distance;
+
+  let prevBoundary = 0;
+  for (const slab of DISTANCE_SLABS) {
+    if (remaining <= 0) break;
+    const slabWidth = slab.upTo === Infinity ? remaining : slab.upTo - prevBoundary;
+    const kmInSlab = Math.min(remaining, slabWidth);
+    fare += kmInSlab * slab.ratePerKm;
+    remaining -= kmInSlab;
+    prevBoundary = slab.upTo;
+  }
+
+  return Math.round(fare * 100) / 100;
 }
 
 function findRouteHalts(halts, boarding, destination) {
@@ -148,8 +197,11 @@ function journeyDetails(boardingHalt, destinationHalt, coachName = "SL") {
 
 module.exports = {
   ALLOWED_COACH_NAMES,
-  BASE_RATE_PER_KM,
+  DISTANCE_SLABS,
   COACH_FARE_MULTIPLIERS,
+  RESERVATION_FEES,
+  GST_RATE,
+  GST_APPLICABLE_CLASSES,
   MINIMUM_FARES,
   parseRunningDays,
   parseTravelDate,
