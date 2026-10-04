@@ -1,306 +1,101 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { loadStripe } from "@stripe/stripe-js";
-import {
-  Elements,
-  PaymentElement,
-  useStripe,
-  useElements,
-} from "@stripe/react-stripe-js";
+import { Elements } from "@stripe/react-stripe-js";
 import { toast } from "react-toastify";
 import apiClient from "../api/axiosClient";
 
-// Initializing Stripe
-const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY);
+import PaymentForm, { stripePromise, stripeAppearance } from "./PaymentForm";
+import { downloadReceipt } from "../utils/downloadReceipt";
+import { formatJourneyDate } from "../utils/bookingRoute";
+import { readBookingDraft, saveBookingDraft, reservationSecondsLeft } from "../utils/bookingDraft";
 
-const stripeAppearance = {
-  theme: "flat",
-  variables: {
-    colorPrimary:    "#f2a93b",
-    colorBackground: "#f6f0e2",
-    colorText:       "#1d2b36",
-    colorDanger:     "#d9534f",
-    fontFamily:      "Inter, system-ui, sans-serif",
-    borderRadius:    "6px",
-  },
-  rules: {
-    ".Input": {
-      border:    "1px solid #dee2e6",
-      boxShadow: "none",
-    },
-    ".Input:focus": {
-      border:    "1px solid #f2a93b",
-      boxShadow: "0 0 0 0.2rem rgba(242,169,59,0.25)",
-    },
-    ".Label": {
-      fontFamily:    "var(--font-mono)",
-      fontWeight:    "600",
-      textTransform: "uppercase",
-      letterSpacing: "0.04em",
-      fontSize:      "0.75rem",
-      color:         "#4a5a68",
-    },
-  },
-};
-
-// Stripe payment form
-function PaymentForm({ amount, bookingId, onSuccess }) {
-  const stripe   = useStripe();
-  const elements = useElements();
-  const [paying,              setPaying]              = useState(false);
-  const [paymentElementReady, setPaymentElementReady] = useState(false);
-
-  const handlePay = async () => {
-    if (!stripe || !elements || !paymentElementReady) return;
-
-    setPaying(true);
-
-    let result;
-    try {
-      result = await stripe.confirmPayment({
-        elements,
-        confirmParams: {
-          // for redirect based payment methods
-          return_url: `${window.location.origin}/dashboard`,
-        },
-        redirect: "if_required", // for standard card payments
-      });
-    } catch (err) {
-      toast.error(err.message || "Payment form is still loading. Please try again.");
-      setPaying(false);
-      return;
-    }
-
-    const { error, paymentIntent } = result;
-
-    if (error) {
-      toast.error(error.message);
-      setPaying(false);
-      return;
-    }
-
-    if (paymentIntent?.status === "succeeded") {
-      try {
-        await apiClient.post("/bookings/verify-payment", {
-          bookingId,
-          paymentIntentId: paymentIntent.id,
-        });
-        onSuccess();
-      } catch (err) {
-        toast.error(err.response?.data?.message || "Payment verified but server update failed.");
-        setPaying(false);
-      }
-    } else {
-      toast.error("Payment was not completed. Please try again.");
-      setPaying(false);
-    }
-  };
-
-  return (
-    <>
-      <PaymentElement
-        onReady={() => setPaymentElementReady(true)}
-        onLoadError={(event) => {
-          toast.error(event.error?.message || "Payment form failed to load. Try refreshing the page."); 
-        }}
-      />
-
-      <button
-        type="button"
-        className="btn btn-amber w-100 mt-3"
-        onClick={handlePay}
-        disabled={!stripe || !elements || !paymentElementReady || paying}
-      >
-        {paying
-          ? "Processing…"
-          : paymentElementReady
-          ? `Pay ₹${amount.toLocaleString("en-IN")}`
-          : "Loading payment form…"}
-      </button>
-    </>
-  );
-}
-
-// Receipt downloader
-export function downloadReceipt(booking, amount) {
-  const fmt = (iso) =>
-    new Date(iso).toLocaleString("en-IN", {
-      weekday: "short", year: "numeric", month: "short",
-      day: "numeric", hour: "2-digit", minute: "2-digit",
-    });
-  const fmtMaybe = (iso) => (iso ? fmt(iso) : "Not set");
-  const distanceText = Number.isFinite(Number(booking.distance))
-    ? `${Number(booking.distance).toLocaleString("en-IN", { maximumFractionDigits: 1 })} km`
-    : "Not set";
-  const stripeId = booking.stripeId || booking.payment?.stripePaymentId || "Not set";
-
-  const passengerRows = booking.passengers
-    .map(
-      (p, i) => `
-      <tr>
-        <td>${i + 1}</td>
-        <td>${p.passengerName}</td>
-        <td>${p.passengerAge}</td>
-        <td><strong>${p.seatNumber}</strong></td>
-      </tr>`
-    )
-    .join("");
-
-    // html and css for the receipt
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RailReserve — Booking #${booking.id}</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: Arial, Helvetica, sans-serif; max-width: 680px; margin: 40px auto; padding: 0 20px; color: #1d2b36; }
-    .header { background: #11212f; color: #f2a93b; padding: 28px 32px; border-radius: 12px 12px 0 0; }
-    .header h1 { font-size: 1.4rem; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 4px; }
-    .header p  { color: #6f9fc9; font-size: 0.9rem; }
-    .perf { border-top: 2.5px dashed #ccc; margin: 0; }
-    .body { background: #f6f0e2; padding: 28px 32px; border-radius: 0 0 12px 12px; }
-    .booking-id { font-family: 'Courier New', monospace; font-size: 1.3rem; font-weight: 700; letter-spacing: 0.06em; margin-bottom: 22px; color: #11212f; }
-    h3 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: #4a5a68; margin: 20px 0 8px; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
-    th, td { padding: 9px 12px; border: 1px solid #ddd; font-size: 0.88rem; text-align: left; }
-    th { background: #ebe0c8; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: #4a5a68; }
-    .paid { color: #4c9a6a; font-weight: 700; }
-    .footer { margin-top: 28px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 0.78rem; color: #4a5a68; text-align: center; line-height: 1.6; }
-    @media print { body { margin: 0; } }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <h1>🚆 RailReserve</h1>
-    <p>Booking Confirmation Receipt</p>
-  </div>
-  <div class="perf"></div>
-  <div class="body">
-    <div class="booking-id">PNR ${booking.pnr || "Not set"}</div>
-
-    <h3>Journey Details</h3>
-    <table>
-      <tbody>
-        <tr><th style="width:38%">Train</th><td>${booking.train.name} (${booking.train.number})</td></tr>
-        <tr><th>Booking ID</th><td>#${String(booking.id).padStart(6, "0")}</td></tr>
-        <tr><th>PNR</th><td>${booking.pnr || "Not set"}</td></tr>
-        <tr><th>Coach</th><td>${booking.coach.name} · ${booking.coach.type}</td></tr>
-        <tr><th>Boarding</th><td>${booking.boarding}</td></tr>
-        <tr><th>Destination</th><td>${booking.destination}</td></tr>
-        <tr><th>Distance</th><td>${distanceText}</td></tr>
-        <tr><th>Start Date & Time</th><td>${fmtMaybe(booking.startDateTime)}</td></tr>
-        <tr><th>Arrival Date & Time</th><td>${fmtMaybe(booking.arrivalDateTime)}</td></tr>
-        ${booking.durationText ? `<tr><th>Duration</th><td>${booking.durationText}</td></tr>` : ""}
-        <tr><th>Booking Date</th><td>${fmt(booking.bookedAt)}</td></tr>
-      </tbody>
-    </table>
-
-    <h3>Passengers</h3>
-    <table>
-      <thead>
-        <tr><th>#</th><th>Name</th><th>Age</th><th>Seat</th></tr>
-      </thead>
-      <tbody>${passengerRows}</tbody>
-    </table>
-
-    <h3>Payment</h3>
-    <table>
-      <tbody>
-        <tr><th style="width:38%">Amount Paid</th><td>₹${amount.toLocaleString("en-IN")}</td></tr>
-        <tr><th>Stripe ID</th><td>${stripeId}</td></tr>
-        <tr><th>Currency</th><td>INR</td></tr>
-        <tr><th>Status</th><td class="paid">✓ PAID</td></tr>
-      </tbody>
-    </table>
-
-    <div class="footer">
-      <p>Thank you for choosing RailReserve. Have a safe journey!</p>
-      <p>This is a computer-generated receipt and does not require a signature.</p>
-    </div>
-  </div>
-</body>
-</html>`;
-
-  const blob = new Blob([html], { type: "text/html" });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement("a");
-  a.href     = url;
-  a.download = `RailReserve-Receipt-${booking.pnr || booking.id}.html`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-//modal for coach selection, then passenger details, then stripe payment and receipt download
-export default function BookingFlowModal({ train, boarding, destination, travelDate, onClose }) {
+// Routed booking flow. Seat holds and payment state survive a refresh in this tab.
+export default function BookingFlow({ train, boarding, destination, travelDate, draftKey }) {
   const navigate = useNavigate();
+  const [draft] = useState(() => readBookingDraft(draftKey));
+  const headingRef = useRef(null);
+  const [summaryOpen, setSummaryOpen] = useState(() => window.innerWidth >= 992);
+  const [availabilityAttempt, setAvailabilityAttempt] = useState(0);
+  const [availabilityError, setAvailabilityError] = useState("");
+  const [flowError, setFlowError] = useState("");
 
   // coach selection state
   const [coaches,       setCoaches]       = useState([]);
   const [loadingCoaches, setLoadingCoaches] = useState(true);
 
-  const [selectedCoach, setSelectedCoach] = useState(null);
-  const [passengerCount, setPassengerCount] = useState(1);
+  const [selectedCoach, setSelectedCoach] = useState(draft.selectedCoach || null);
+  const [passengerCount, setPassengerCount] = useState(draft.passengerCount || 1);
 
   const [reserving,     setReserving]     = useState(false);
 
   // details state
-  const [reservation,  setReservation]  = useState(null);
-  const [passengers,   setPassengers]   = useState([]);
-  const [secondsLeft,  setSecondsLeft]  = useState(600);
+  const [reservation,  setReservation]  = useState(draft.reservation || null);
+  const [passengers,   setPassengers]   = useState(draft.passengers || []);
+  const [secondsLeft,  setSecondsLeft]  = useState(() => reservationSecondsLeft(draft.reservation?.expiresAt));
 
   const [confirming,   setConfirming]   = useState(false);
   const timerRef = useRef(null);
 
   // payment state
-  const [clientSecret, setClientSecret] = useState("");
-  const [amount,       setAmount]       = useState(0);
+  const [clientSecret, setClientSecret] = useState(draft.clientSecret || "");
+  const [amount,       setAmount]       = useState(draft.amount || 0);
 
   // receipt state
-  const [booking, setBooking] = useState(null);
+  const [booking, setBooking] = useState(draft.booking || null);
 
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(draft.step || 1);
+
+  useEffect(() => {
+    saveBookingDraft(draftKey, { step, selectedCoach, passengerCount, reservation, passengers, clientSecret, amount, booking });
+  }, [draftKey, step, selectedCoach, passengerCount, reservation, passengers, clientSecret, amount, booking]);
+
+  useEffect(() => { headingRef.current?.focus({ preventScroll: step === 1 }); }, [step]);
 
   // Load coaches
   useEffect(() => {
     let cancelled = false;
+    setLoadingCoaches(true);
+    setAvailabilityError("");
     apiClient
       .get(`/trains/${train.id}/coaches`, {
         params: { date: travelDate, boarding, destination },
       })
       .then(({ data }) => { if (!cancelled) setCoaches(data.coaches); })
-      .catch(() => { if (!cancelled) toast.error("Failed to load coach availability."); })
+      .catch(() => { if (!cancelled) setAvailabilityError("Couldn’t load coach availability. Please try again."); })
       .finally(() => { if (!cancelled) setLoadingCoaches(false); });
     return () => { cancelled = true; };
-  }, [train.id, travelDate, boarding, destination]);
+  }, [train.id, travelDate, boarding, destination, availabilityAttempt]);
 
   // 10-minute countdown
   useEffect(() => {
     if (step !== 2 || !reservation) return;
-    const remaining = Math.max(
-      0,
-      Math.floor((new Date(reservation.expiresAt) - Date.now()) / 1000)
-    );
-    setSecondsLeft(remaining);
-    timerRef.current = setInterval(() => {
-      setSecondsLeft((s) => {
-        if (s <= 1) { clearInterval(timerRef.current); return 0; }
-        return s - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timerRef.current);
+    const updateCountdown = () => setSecondsLeft(reservationSecondsLeft(reservation.expiresAt));
+    updateCountdown();
+    timerRef.current = setInterval(updateCountdown, 1000);
+    document.addEventListener("visibilitychange", updateCountdown);
+    return () => {
+      clearInterval(timerRef.current);
+      document.removeEventListener("visibilitychange", updateCountdown);
+    };
   }, [step, reservation]);
+
+  const restartSelection = () => {
+    setReservation(null);
+    setSelectedCoach(null);
+    setFlowError("");
+    setStep(1);
+    setAvailabilityAttempt((value) => value + 1);
+    try { sessionStorage.removeItem(draftKey); } catch { /* Storage may be unavailable. */ }
+  };
 
   const fmt = (s) =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
   const handleReserve = async () => {
-    if (!selectedCoach) return;
+    if (!selectedCoach || reserving) return;
 
     setReserving(true);
+    setFlowError("");
     try {
       const { data } = await apiClient.post("/bookings/reserve", {
         coachId: selectedCoach.id,
@@ -308,12 +103,13 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
         travelDate,
       });
       setReservation(data);
-      setPassengers(Array.from({ length: passengerCount }, () => ({ name: "", age: "" })));
+      setSecondsLeft(reservationSecondsLeft(data.expiresAt));
+      setPassengers((previous) => Array.from({ length: passengerCount }, (_, index) => previous[index] || { name: "", age: "" }));
       setStep(2);
     } catch (err) {
-      toast.error(
-        err.response?.data?.message || "Failed to reserve seats. Please try again."
-      );
+      setFlowError(err.response?.data?.message || "Failed to reserve seats. Please try again.");
+      setSelectedCoach(null);
+      setAvailabilityAttempt((value) => value + 1);
     } finally {
       setReserving(false);
     }
@@ -325,12 +121,15 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
     );
 
   const handleProceedToPayment = async () => {
-    if (secondsLeft === 0) {
+    if (reservationSecondsLeft(reservation?.expiresAt) === 0) {
+      setSecondsLeft(0);
       toast.error("Session expired. Please go back and select seats again.");
       return;
     }
 
+    if (confirming) return;
     setConfirming(true);
+    setFlowError("");
     try {
       const { data } = await apiClient.post("/bookings/confirm", {
         reservationId: reservation.reservationId,
@@ -354,26 +153,23 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
         setStep(4);
       }
     } catch (err) {
-      toast.error(
-        err.response?.data?.message || "Failed to confirm booking. Please try again."
-      );
+      if ([410, 502].includes(err.response?.status)) {
+        setSecondsLeft(0);
+        setReservation((current) => ({ ...current, expiresAt: new Date(0).toISOString() }));
+      }
+      setFlowError(err.response?.data?.message || "Failed to confirm booking. Please try again.");
     } finally {
       setConfirming(false);
     }
   };
 
-  const handleClose = () => {
-    clearInterval(timerRef.current);
-    onClose();
-  };
-
   const handleDone = () => {
-    handleClose();
+    clearInterval(timerRef.current);
     navigate("/dashboard");
   };
 
   const STEPS = ["Select Coach", "Passenger Details", "Payment", "Confirmed"];
-  const routeFare = Number(selectedCoach?.routeFare || booking?.routeFare || train.routeFare || 0);
+  const routeFare = Number(selectedCoach?.routeFare ?? booking?.routeFare ?? train.routeFare ?? 0);
   const durationText = train.durationText || booking?.durationText || "";
   const formatJourneyDateTime = (iso) =>
     iso
@@ -391,68 +187,45 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
     : "Not set";
   const bookingStripeId = booking?.stripeId || booking?.payment?.stripePaymentId || "Not set";
 
+  const summaryTotal = step >= 3 ? amount : routeFare * passengerCount;
+
   return (
-    <>
-      <div
-        className="modal-backdrop fade show"
-        onClick={step === 4 ? handleDone : undefined}
-        style={{ zIndex: 1050 }}
-      />
-      <div className="modal fade show d-block" tabIndex="-1" style={{ zIndex: 1055 }}>
-        <div className="modal-dialog modal-lg modal-dialog-scrollable">
-          <div
-            className="modal-content"
-            style={{ background: "var(--color-paper)", color: "var(--color-ink)" }}
-          >
-            {/* header of the MODAL*/}
-            <div
-              className="modal-header"
-              style={{
-                background:   "var(--color-navy-2)",
-                color:        "var(--color-paper)",
-                borderBottom: "2px solid var(--color-amber)",
-              }}
-            >
-              <div>
-                <h5 className="modal-title font-display mb-0">{train.name}</h5>
-                <small style={{ color: "var(--color-steel)", fontFamily: "var(--font-mono)" }}>
-                  {boarding} → {destination}&nbsp;·&nbsp;#{train.number}
-                </small>
-              </div>
-              <button
-                type="button"
-                className="btn-close btn-close-white"
-                onClick={handleClose}
-                aria-label="Close"
-              />
+    <div className="booking-layout">
+      <aside className="booking-summary" aria-labelledby="journey-summary-title">
+        <details className="booking-summary__details" open={summaryOpen} onToggle={(event) => setSummaryOpen(event.currentTarget.open)}>
+          <summary>
+            <span><span className="booking-eyebrow" id="journey-summary-title">Journey summary</span><strong>{boarding} → {destination}</strong><small>{formatJourneyDate(train.boardingDate)} · {selectedCoach ? selectedCoach.name : "Choose a coach"}</small></span>
+            <span className="booking-summary__compact-fare">{selectedCoach ? `₹${summaryTotal.toLocaleString("en-IN")}` : "View details"}<small>Details ▾</small></span>
+          </summary>
+          <div className="booking-summary__content">
+            <h2>{train.name}</h2>
+            <p className="text-muted">Train #{train.number}</p>
+            <div className="booking-summary__journey">
+              <div><strong>{train.boardingHalt?.departureTime || "—"}</strong><span>{boarding}</span><small>{formatJourneyDate(train.boardingDate)}</small></div>
+              <span className="text-muted">{durationText || "→"}</span>
+              <div><strong>{train.destinationHalt?.arrivalTime || "—"}</strong><span>{destination}</span><small>{formatJourneyDate(train.destinationDate)}</small></div>
             </div>
-
-            {/* Step indicator */}
-            <div
-              style={{
-                background: "var(--color-navy-3)",
-                padding:    "0.5rem 1.5rem",
-                display:    "flex",
-                gap:        "1.25rem",
-              }}
-            >
-              {STEPS.map((label, i) => (
-                <span
-                  key={label}
-                  className="font-mono"
-                  style={{
-                    fontSize:      "0.72rem",
-                    textTransform: "uppercase",
-                    color:         step === i + 1 ? "var(--color-amber)" : "var(--color-steel)",
-                    fontWeight:    step === i + 1 ? 700 : 400,
-                  }}
-                >
-                  {i + 1}. {label}
-                </span>
-              ))}
-            </div>
-
-            <div className="modal-body">
+            <dl className="booking-summary__fare">
+              <div><dt>Class / coach</dt><dd>{selectedCoach ? `${selectedCoach.type} / ${selectedCoach.name}` : "Not selected"}</dd></div>
+              <div><dt>Passengers</dt><dd>{passengerCount}</dd></div>
+              {selectedCoach && <div><dt>Fare per passenger</dt><dd>₹{routeFare.toLocaleString("en-IN")}</dd></div>}
+              <div className="booking-summary__total"><dt>{step === 4 ? "Total paid" : "Total fare"}</dt><dd>{selectedCoach ? `₹${summaryTotal.toLocaleString("en-IN")}` : "—"}</dd></div>
+            </dl>
+            <p className="booking-summary__note">{step === 4 ? "Your journey is confirmed. Your ticket is available in My bookings." : "Availability is checked when you reserve. Your seats are held for 10 minutes while you add passenger details."}</p>
+          </div>
+        </details>
+      </aside>
+      <section className="booking-panel" aria-labelledby="booking-step-title">
+        <ol className="booking-steps" aria-label="Booking progress">
+          {STEPS.map((label, i) => (
+            <li key={label} className={step === i + 1 ? "is-current" : step > i + 1 ? "is-complete" : ""} aria-current={step === i + 1 ? "step" : undefined}>
+              <span className="booking-steps__number" aria-hidden="true">{step > i + 1 ? "✓" : i + 1}</span><span>{label}</span>
+            </li>
+          ))}
+        </ol>
+        <div className="booking-panel__body">
+          <h2 id="booking-step-title" ref={headingRef} tabIndex={-1}>{STEPS[step - 1]}</h2>
+          {flowError && <p className="booking-error" role="alert">{flowError}</p>}
               {/* STEP 1: Coach selection */}
               {step === 1 && (
                 <>
@@ -460,39 +233,44 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                     <div className="text-center py-4">
                       <div
                         className="spinner-border"
-                        style={{ color: "var(--color-amber)" }}
+                        style={{ color: "var(--action-primary)" }}
                         role="status"
                       />
                     </div>
                   )}
 
 
-                  {!loadingCoaches && coaches.length === 0 && (
+                  {availabilityError && <div className="booking-error" role="alert"><p>{availabilityError}</p><button className="btn btn-outline-secondary" onClick={() => setAvailabilityAttempt((value) => value + 1)}>Retry availability</button></div>}
+                  {passengers.length > 0 && <p className="text-muted">Your passenger details are kept for this attempt. Select a coach to reserve seats again.</p>}
+                  {!loadingCoaches && !availabilityError && coaches.length === 0 && (
                     <p className="text-muted text-center py-3">
                       No coaches available for this train.
                     </p>
                   )}
 
-                  {!loadingCoaches && coaches.length > 0 && (
+                  {!loadingCoaches && !availabilityError && coaches.length > 0 && (
                     <>
-                      <h6 className="font-display mb-3">Choose a Coach</h6>
+                      <p className="text-muted mb-3">Choose a coach to see your total fare and reserve seats.</p>
                       <div className="row g-2 mb-4">
                         {coaches.map((coach) => {
                           const isSelected = selectedCoach?.id === coach.id;
-                          const isFull     = coach.availableSeats === 0;
+                          const isFull     = coach.availableSeats <= 0;
                           return (
-                            <div className="col-6 col-md-4 col-lg-3" key={coach.id}>
-                              <div
-                                className="p-3 rounded text-center"
+                            <div className="col-6 col-md-4" key={coach.id}>
+                              <button
+                                type="button"
+                                disabled={isFull}
+                                aria-pressed={isSelected}
+                                className="coach-option p-3 rounded text-center"
                                 style={{
-                                  border:     `2px solid ${isSelected ? "var(--color-amber)" : "#ddd"}`,
+                                  border:     `2px solid ${isSelected ? "var(--action-primary)" : "#ddd"}`,
                                   background: isSelected
-                                    ? "rgba(242,169,59,0.1)"
+                                    ? "var(--action-soft)"
                                     : "var(--color-paper-dark)",
                                   cursor:  isFull ? "not-allowed" : "pointer",
                                   opacity: isFull ? 0.5 : 1,
                                 }}
-                                onClick={() => { if (!isFull) setSelectedCoach(coach); }}
+                                onClick={() => { setSelectedCoach(coach); setPassengerCount((count) => Math.max(1, Math.min(count, coach.availableSeats))); }}
                               >
                                 <div
                                   className="font-mono fw-bold"
@@ -522,7 +300,7 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                                     FULL
                                   </div>
                                 )}
-                              </div>
+                              </button>
                             </div>
                           );
                         })}
@@ -535,6 +313,7 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                             style={{ background: "var(--color-paper-dark)", border: "1px solid #ddd" }}
                           >
                             <label
+                              htmlFor="passenger-count"
                               className="form-label"
                               style={{
                                 fontFamily:    "var(--font-mono)",
@@ -545,7 +324,9 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                               Number of Passengers (max {selectedCoach.availableSeats})
                             </label>
                             <input
+                              id="passenger-count"
                               type="number"
+                              step="1"
                               className="form-control"
                               value={passengerCount}
                               min={1}
@@ -554,7 +335,7 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                                 setPassengerCount(
                                   Math.max(
                                     1,
-                                    Math.min(selectedCoach.availableSeats, Number(e.target.value))
+                                    Math.min(selectedCoach.availableSeats, Math.floor(Number(e.target.value)))
                                   )
                                 )
                               }
@@ -562,7 +343,7 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                             {routeFare > 0 && (
                               <div
                                 className="mt-2 font-mono fw-semibold"
-                                style={{ color: "var(--color-amber)" }}
+                                style={{ color: "var(--action-primary)" }}
                               >
                                 Total:{" "}
                                 ₹{(routeFare * passengerCount).toLocaleString("en-IN")}
@@ -575,13 +356,15 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
 
 
                       <button
-                        className="btn btn-amber w-100"
+                        className="btn btn-primary w-100"
                         disabled={!selectedCoach || reserving}
                         onClick={handleReserve}
                       >
                         {reserving
                           ? "Reserving…"
-                          : `Reserve ${passengerCount} Seat${passengerCount > 1 ? "s" : ""} in ${selectedCoach?.name ?? ""}`}
+                          : selectedCoach
+                          ? `Reserve ${passengerCount} Seat${passengerCount > 1 ? "s" : ""} in ${selectedCoach.name}`
+                          : "Select a coach to continue"}
                       </button>
                     </>
                   )}
@@ -591,37 +374,37 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
               {/* STEP 2: Passenger details*/}
               {step === 2 && (
                 <>
+                  {secondsLeft === 0 && <div className="booking-error" role="alert"><strong>Your seat reservation has expired.</strong><p>The seats have been released. Check availability to reserve again; your passenger details will be kept.</p><button type="button" className="btn btn-primary" onClick={restartSelection}>Check availability again</button></div>}
                   {/* session countdown timer */}
                   <div
                     className="d-flex align-items-center gap-3 mb-4 p-3 rounded"
                     style={{
                       background: secondsLeft <= 60
                         ? "rgba(217,83,79,0.08)"
-                        : "rgba(242,169,59,0.08)",
-                      border: `1px solid ${secondsLeft <= 60 ? "var(--color-danger)" : "var(--color-amber)"}`,
+                        : "var(--action-soft)",
+                      border: `1px solid ${secondsLeft <= 60 ? "var(--color-danger)" : "var(--action-primary)"}`,
                     }}
                   >
                     <div
                       className="font-mono fw-bold"
                       style={{
                         fontSize: "1.6rem",
-                        color: secondsLeft <= 60 ? "var(--color-danger)" : "var(--color-amber)",
+                        color: secondsLeft <= 60 ? "var(--color-danger)" : "var(--action-primary)",
                       }}
                     >
                       {fmt(secondsLeft)}
                     </div>
                     <div>
                       <div className="fw-semibold" style={{ color: "var(--color-ink)" }}>
-                        Seats reserved in Coach {selectedCoach?.name}
+                        {secondsLeft > 0 ? `Seats held in Coach ${selectedCoach?.name}` : "Seat hold ended"}
                       </div>
                       <div className="small text-muted">
                         Seats: {reservation.seatNumbers.join(", ")}
-                        &nbsp;·&nbsp;Complete booking before time runs out.
+                        &nbsp;·&nbsp;Continue to payment before this hold expires.
                       </div>
                     </div>
                   </div>
 
-                  <h6 className="font-display mb-3">Passenger Details</h6>
                   {passengers.map((p, i) => (
                     <div
                       key={i}
@@ -638,10 +421,11 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                           </span>
                         </div>
                         <div className="col-md-6">
-                          <label className="form-label small mb-1">Full Name</label>
+                          <label htmlFor={`passenger-${i}-name`} className="form-label small mb-1">Full name</label>
                           <input
+                            id={`passenger-${i}-name`}
                             type="text"
-                            className="form-control form-control-sm"
+                            className="form-control"
                             value={p.name}
                             onChange={(e) => updatePassenger(i, "name", e.target.value)}
                             placeholder="Passenger name"
@@ -649,10 +433,11 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                           />
                         </div>
                         <div className="col-md-3">
-                          <label className="form-label small mb-1">Age</label>
+                          <label htmlFor={`passenger-${i}-age`} className="form-label small mb-1">Age</label>
                           <input
+                            id={`passenger-${i}-age`}
                             type="number"
-                            className="form-control form-control-sm"
+                            className="form-control"
                             value={p.age}
                             onChange={(e) => updatePassenger(i, "age", e.target.value)}
                             placeholder="Age"
@@ -673,7 +458,7 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                   {routeFare > 0 && (
                     <div
                       className="d-flex justify-content-between align-items-center p-3 rounded mt-3"
-                      style={{ background: "rgba(242,169,59,0.08)", border: "1px solid var(--color-amber)" }}
+                      style={{ background: "var(--action-soft)", border: "1px solid var(--action-primary)" }}
                     >
                       <span style={{ color: "var(--color-ink)" }}>
                         {passengers.length} seat{passengers.length > 1 ? "s" : ""} ×{" "}
@@ -681,7 +466,7 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                       </span>
                       <span
                         className="font-mono fw-bold"
-                        style={{ fontSize: "1.15rem", color: "var(--color-amber)" }}
+                        style={{ fontSize: "1.15rem", color: "var(--action-primary)" }}
                       >
                         ₹{(routeFare * passengers.length).toLocaleString("en-IN")}
                       </span>
@@ -692,22 +477,11 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
 
                   <div className="d-flex gap-2 mt-3">
                     <button
-                      className="btn btn-outline-secondary"
-                      onClick={() => {
-                        clearInterval(timerRef.current);
-                        setStep(1);
-                        setReservation(null);
-
-                      }}
-                    >
-                      ← Back
-                    </button>
-                    <button
-                      className="btn btn-amber flex-fill"
+                      className="btn btn-primary flex-fill"
                       disabled={
                         confirming ||
                         secondsLeft === 0 ||
-                        passengers.some((p) => !p.name.trim() || !p.age)
+                        passengers.some((p) => !p.name.trim() || !Number.isInteger(Number(p.age)) || Number(p.age) < 1 || Number(p.age) > 120)
                       }
                       onClick={handleProceedToPayment}
                     >
@@ -728,30 +502,32 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                 <>
                   <div
                     className="d-flex justify-content-between align-items-center mb-4 p-3 rounded"
-                    style={{ background: "rgba(242,169,59,0.08)", border: "1px solid var(--color-amber)" }}
+                    style={{ background: "var(--action-soft)", border: "1px solid var(--action-primary)" }}
                   >
                     <span style={{ color: "var(--color-ink)", fontWeight: 600 }}>
                       Amount to pay
                     </span>
                     <span
                       className="font-mono fw-bold"
-                      style={{ fontSize: "1.3rem", color: "var(--color-amber)" }}
+                      style={{ fontSize: "1.3rem", color: "var(--action-primary)" }}
                     >
                       ₹{amount.toLocaleString("en-IN")}
                     </span>
                   </div>
 
-                  <Elements
+                  {!stripePromise && <p className="booking-error" role="alert">Payment is currently unavailable. Please contact support before starting another booking.</p>}
+                  {stripePromise && <Elements
                     key={clientSecret}
                     stripe={stripePromise}
                     options={{ clientSecret, appearance: stripeAppearance }}
                   >
                     <PaymentForm
+                      clientSecret={clientSecret}
                       amount={amount}
                       bookingId={booking.id}
                       onSuccess={() => setStep(4)}
                     />
-                  </Elements>
+                  </Elements>}
                 </>
               )}
 
@@ -861,7 +637,7 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                       Done
                     </button>    {/* Done button */}
                     <button
-                      className="btn btn-amber flex-fill"
+                      className="btn btn-primary flex-fill"
                       onClick={() => downloadReceipt(booking, amount)}
                     >
                       ⬇ Download Receipt
@@ -869,10 +645,8 @@ export default function BookingFlowModal({ train, boarding, destination, travelD
                   </div>
                 </>
               )}
-            </div>
-          </div>
         </div>
-      </div>
-    </>
+      </section>
+    </div>
   );
 }

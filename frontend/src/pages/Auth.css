@@ -35,8 +35,8 @@
 }
 
 .auth-card .form-control:focus {
-  border-color: var(--color-amber);
-  box-shadow: 0 0 0 0.2rem rgba(242, 169, 59, 0.25);
+  border-color: var(--action-primary);
+  box-shadow: 0 0 0 0.2rem var(--focus-ring);
 }
 
 .auth-switch {

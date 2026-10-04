@@ -3,7 +3,7 @@ import { toast } from "react-toastify";
 import { Link } from "react-router-dom";
 import apiClient from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
-import { downloadReceipt } from "../components/BookingFlowModal";
+import { downloadReceipt } from "../utils/downloadReceipt";
 import { BookingSkeleton } from "../components/SkeletonLoaders";
 
 function formatBookingDate(iso) {
@@ -231,7 +231,7 @@ function BookingCard({ booking }) {
                     gap:          "6px",
                     padding:      "3px 12px",
                     borderRadius: "20px",
-                    background:   "var(--color-white)",
+                    background:   "var(--surface)",
                     border:       "1px solid #140202",
                     fontSize:     "0.82rem",
                     color:        "var(--color-ink)",
@@ -280,7 +280,7 @@ function BookingCard({ booking }) {
         <div className="mt-3 d-flex justify-content-end">
           <button
             type="button"
-            className="btn btn-sm btn-amber"
+            className="btn btn-sm btn-primary"
             onClick={() => downloadReceipt(booking, booking.payment?.amount || 0)}
           >
             Download Receipt
@@ -322,9 +322,9 @@ export default function Dashboard() {
       <div className="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
         <div>
           <h1 className="font-display mb-1">My Dashboard</h1>
-          <p className="text-amber mb-0 font-mono">Welcome, {user?.username}</p>
+          <p className="text-accent mb-0 font-mono">Welcome, {user?.username}</p>
         </div>
-        <Link to="/" className="btn btn-amber">
+        <Link to="/" className="btn btn-primary">
           + Search Trains
         </Link>
       </div>
@@ -344,7 +344,7 @@ export default function Dashboard() {
           <div className="ticket-card__body text-center py-5">
             <div style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}>🎫</div>
             <p className="text-muted mb-3">You have no confirmed bookings yet.</p>
-            <Link to="/" className="btn btn-amber">
+            <Link to="/" className="btn btn-primary">
               Book your first journey
             </Link>
           </div>
@@ -362,8 +362,8 @@ export default function Dashboard() {
                 <span
                   className="badge ms-2"
                   style={{
-                    background:  "rgba(242,169,59,0.15)",
-                    color:       "var(--color-amber)",
+                    background:  "var(--action-soft)",
+                    color:       "var(--accent-on-dark)",
                     fontFamily:  "var(--font-mono)",
                     fontSize:    "0.75rem",
                     fontWeight:  700,

@@ -121,7 +121,7 @@ export default function BookingsModal({ show, onClose, bookings, loading }) {
               style={{
                 background:   "var(--color-navy-2)",
                 color:        "var(--color-paper)",
-                borderBottom: "2px solid var(--color-amber)",
+                borderBottom: "2px solid var(--action-primary)",
               }}
             >
               <h5 className="modal-title font-display">All Bookings</h5>
@@ -161,7 +161,7 @@ export default function BookingsModal({ show, onClose, bookings, loading }) {
                   <div
                     className="spinner-border"
                     role="status"
-                    style={{ color: "var(--color-amber)" }}
+                    style={{ color: "var(--action-primary)" }}
                   >
                     <span className="visually-hidden">Loading…</span>
                   </div>

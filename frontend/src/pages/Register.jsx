@@ -134,7 +134,7 @@ export default function Register() {
                 required
               />
             </div>
-            <button type="submit" className="btn btn-amber w-100" disabled={submitting}>
+            <button type="submit" className="btn btn-primary w-100" disabled={submitting}>
               {submitting ? "Creating account..." : "Create Account"}
             </button>
           </form>

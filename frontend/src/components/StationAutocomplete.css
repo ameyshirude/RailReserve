@@ -84,17 +84,17 @@
 }
 
 .station-autocomplete__item:hover {
-  background-color: var(--color-amber);
+  background-color: var(--action-soft);
   color: var(--color-ink);
 }
 
 .station-autocomplete__item--selected {
-  background-color: rgba(103, 113, 249, 0.12);
+  background-color: var(--action-soft);
   font-weight: 600;
 }
 
 .station-autocomplete__item--active {
-  background-color: var(--color-amber);
+  background-color: var(--action-soft);
   color: var(--color-ink);
   outline: none;
 }
@@ -111,5 +111,5 @@
 
 .station-autocomplete__match {
   font-weight: 700;
-  color: var(--color-amber-dark);
+  color: var(--action-hover);
 }

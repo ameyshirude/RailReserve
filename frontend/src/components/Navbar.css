@@ -4,7 +4,7 @@
   top: 0;
   z-index: 1030;
   background-color: var(--color-navy-2);
-  border-bottom: 2px solid var(--color-amber);
+  border-bottom: 2px solid var(--accent-on-dark);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -14,7 +14,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
-  color: var(--color-amber);
+  color: var(--accent-on-dark);
   font-size: 1.25rem;
   font-weight: 600;
   position: relative;
@@ -23,7 +23,7 @@
   user-select: none;
 }
 .rr-brand:hover {
-  color: var(--color-amber-dark);
+  color: #ffffff;
   text-decoration: none;
 }
 .rr-brand__mark {
@@ -103,8 +103,8 @@
 }
 .rr-hamburger:hover,
 .rr-hamburger[aria-expanded="true"] {
-  border-color: var(--color-amber);
-  background-color: rgba(242, 169, 59, 0.08);
+  border-color: var(--accent-on-dark);
+  background-color: var(--action-soft);
 }
 .rr-hamburger__bar {
   display: block;
@@ -133,6 +133,6 @@
 }
 .rr-dropdown .dropdown-item:hover,
 .rr-dropdown .dropdown-item:focus {
-  background-color: var(--color-amber);
+  background-color: var(--action-soft);
   color: var(--color-ink);
 }

@@ -3,26 +3,13 @@ import { toast } from "react-toastify";
 import { useNavigate, useLocation } from "react-router-dom";
 import apiClient from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
-import BookingFlowModal from "../components/BookingFlowModal";
+import TrainResultCard from "../components/TrainResultCard";
+import { bookingUrl } from "../utils/bookingRoute";
 import StationAutocomplete from "../components/StationAutocomplete";
 import { TrainSkeleton } from "../components/SkeletonLoaders";
-import { uniqueCoachFareOptions } from "../utils/coachDisplay";
 import "./Home.css";
 
 const todayInputValue = () => new Date().toISOString().slice(0, 10);
-
-function formatHaltDateTime(halt, timeField, date) {
-  const time = halt?.[timeField];
-  if (!time) return "—";
-  if (!date) return time;
-  const formattedDate = new Intl.DateTimeFormat("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(`${date}T00:00:00.000Z`));
-  return `${formattedDate}, ${time}`;
-}
 
 export default function Home() {
   const { user }      = useAuth();
@@ -34,7 +21,6 @@ export default function Home() {
   const [trains,        setTrains]       = useState([]);
   const [searched,      setSearched]     = useState(false);
   const [searching,     setSearching]    = useState(false);
-  const [selectedTrain, setSelectedTrain] = useState(null);
   const [travelDate,    setTravelDate]    = useState(todayInputValue());
   const [stations,      setStations]      = useState([]);
 
@@ -62,13 +48,13 @@ export default function Home() {
   };
 
   useEffect(() => {
-    const pending = location.state?.pendingTrain;
-    if (!pending || !user) return;
+    const pending = location.state?.search;
+    if (!pending) return;
 
     let cancelled = false;
     const nextTravelDate = pending.travelDate || todayInputValue();
 
-    async function restorePendingBooking() {
+    async function restoreSearch() {
       setBoarding(pending.boarding);
       setDestination(pending.destination);
       setTravelDate(nextTravelDate);
@@ -84,12 +70,8 @@ export default function Home() {
         });
         if (cancelled) return;
 
-        const restoredTrain =
-          data.trains.find((train) => train.id === pending.train?.id) || data.trains[0] || null;
-
         setTrains(data.trains);
         setSearched(true);
-        setSelectedTrain(restoredTrain);
       } catch (err) {
         if (!cancelled) {
           setTrains([]);
@@ -106,12 +88,12 @@ export default function Home() {
       }
     }
 
-    restorePendingBooking();
+    restoreSearch();
 
     return () => {
       cancelled = true;
     };
-  }, [location.state, navigate, user]);
+  }, [location.state, navigate]);
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -138,7 +120,7 @@ export default function Home() {
 
   const handleTrainClick = (train) => {
     if (user) {
-      setSelectedTrain(train);
+      navigate(bookingUrl(train, boarding, destination, travelDate));
     } else {
       sessionStorage.setItem(
         "pendingBooking",
@@ -149,7 +131,7 @@ export default function Home() {
   };
 
   return (
-    <div className="home-page">
+    <main className="home-page">
       <div className="container py-5">
 
         {/* Search card */}
@@ -209,7 +191,7 @@ export default function Home() {
                 <div className="col-md-2 d-flex align-items-end">
                   <button
                     type="submit"
-                    className="btn btn-amber w-100"
+                    className="btn btn-primary w-100"
                     disabled={searching || !boarding || !destination}
                   >
                     {searching ? "Searching…" : "Search"}
@@ -246,123 +228,16 @@ export default function Home() {
               {trains.length} Train{trains.length !== 1 ? "s" : ""} Found
             </h2>
             <div className="d-flex flex-column gap-3">
-              {trains.map((train) => {
-                const bHalt = train.boardingHalt;
-                const dHalt = train.destinationHalt;
-                const coachFares = (train.coaches || [])
-                  .map((coach) => Number(coach.routeFare || 0))
-                  .filter((fare) => fare > 0);
-                const minFare = coachFares.length
-                  ? Math.min(...coachFares)
-                  : Number(train.routeFare || 0);
-                const fareByCoachType = uniqueCoachFareOptions(train.coaches);
-                return (
-                  <div
-                    key={train.id}
-                    className="ticket-card"
-                    style={{ cursor: "pointer" }}
-                    onClick={() => handleTrainClick(train)}
-                    title={user ? "Click to book" : "Login required to book"}
-                  >
-                    <div className="ticket-card__body">
-                      <div className="d-flex justify-content-between align-items-start flex-wrap gap-2">
-                        <div>
-                          <span
-                            className="font-display"
-                            style={{ fontSize: "1.1rem", color: "var(--color-ink)" }}
-                          >
-                            {train.name}
-                          </span>
-                          <span
-                            className="font-mono ms-2"
-                            style={{ fontSize: "0.82rem", color: "var(--color-ink-soft)" }}
-                          >
-                            #{train.number}
-                          </span>
-                          <div className="mt-2 d-flex gap-4 flex-wrap">
-                            <div>
-                              <div style={{ fontSize: "0.72rem", color: "var(--color-ink-soft)", textTransform: "uppercase" }}>
-                                Departs
-                              </div>
-                              <div className="font-mono fw-semibold" style={{ color: "var(--color-ink)" }}>
-                                {formatHaltDateTime(bHalt, "departureTime", train.boardingDate)}
-                              </div>
-                              <div style={{ fontSize: "0.85rem", color: "var(--color-ink-soft)" }}>
-                                {bHalt.stationName}
-                              </div>
-                            </div>
-                            <div style={{ fontSize: "1.4rem", color: "var(--color-steel)", alignSelf: "center" }}>
-                              →
-                            </div>
-                            <div>
-                              <div style={{ fontSize: "0.72rem", color: "var(--color-ink-soft)", textTransform: "uppercase" }}>
-                                Arrives
-                              </div>
-                              <div className="font-mono fw-semibold" style={{ color: "var(--color-ink)" }}>
-                                {formatHaltDateTime(dHalt, "arrivalTime", train.destinationDate)}
-                              </div>
-                              <div style={{ fontSize: "0.85rem", color: "var(--color-ink-soft)" }}>
-                                {dHalt.stationName}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-end">
-                          <div
-                            className="font-mono"
-                            style={{ fontSize: "1rem", color: "var(--color-ink-soft)" }}
-                          >
-                            {train.coaches.length} coach{train.coaches.length !== 1 ? "es" : ""}
-                          </div>
-                          <div
-                            className="font-mono fw-semibold"
-                            style={{ fontSize: "0.92rem", color: "var(--color-ink)", marginTop: "0.25rem" }}
-                          >
-                            From ₹{minFare.toLocaleString("en-IN")}/seat
-                          </div>
-                          {fareByCoachType.length > 0 && (
-                            <div style={{ fontSize: "0.75rem", color: "var(--color-ink-soft)" }}>
-                              {fareByCoachType
-                                .map((coach) => `${coach.type || coach.name} ₹${Number(coach.routeFare || 0).toLocaleString("en-IN")}`)
-                                .join(" · ")}
-                            </div>
-                          )}
-                          {train.durationText && (
-                            <div style={{ fontSize: "0.78rem", color: "var(--color-ink-soft)" }}>
-                              Duration {train.durationText}
-                            </div>
-                          )}
-                          <div
-                            style={{
-                              fontSize: "0.78rem",
-                              color:    "var(--color-amber)",
-                              marginTop: "0.3rem",
-                            }}
-                          >
-                            {user ? "Click to book ›" : "Login to book ›"}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+              {trains.map((train) => (
+                <TrainResultCard key={train.id} train={train} onSelect={handleTrainClick} needsLogin={!user} />
+              ))}
             </div>
           </>
         )}
       </div>
 
-      {/* Booking modal */}
-      {selectedTrain && (
-        <BookingFlowModal
-          train={selectedTrain}
-          boarding={selectedTrain.boardingHalt?.stationName || boarding.trim()}
-          destination={selectedTrain.destinationHalt?.stationName || destination.trim()}
-          travelDate={selectedTrain.serviceDate || travelDate}
-          onClose={() => setSelectedTrain(null)}
-        />
-      )}
-    </div>
+
+    </main>
   );
 }
 

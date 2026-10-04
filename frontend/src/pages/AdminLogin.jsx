@@ -33,7 +33,7 @@ export default function AdminLogin() {
     <div className="auth-page">
       <div className="auth-card ticket-card">
         <div className="ticket-card__header bg-navy-2">
-          <h1 className="font-display text-amber">Admin Login</h1>
+          <h1 className="font-display text-accent">Admin Login</h1>
           <p>Restricted access for railway administrators only.</p>
         </div>
         <div className="ticket-perforation" />
@@ -69,7 +69,7 @@ export default function AdminLogin() {
                 required
               />
             </div>
-            <button type="submit" className="btn btn-amber w-100" disabled={submitting}>
+            <button type="submit" className="btn btn-primary w-100" disabled={submitting}>
               {submitting ? "Verifying..." : "Login as Admin"}
             </button>
           </form>

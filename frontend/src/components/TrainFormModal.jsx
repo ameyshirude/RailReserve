@@ -135,7 +135,7 @@ export default function TrainFormModal({ show, train, onClose, onSaved }) {
               style={{
                 background:   "var(--color-navy-2)",
                 color:        "var(--color-paper)",
-                borderBottom: "2px solid var(--color-amber)",
+                borderBottom: "2px solid var(--action-primary)",
               }}
             >
               <h5 className="modal-title font-display">
@@ -188,8 +188,8 @@ export default function TrainFormModal({ show, train, onClose, onSaved }) {
                           key={day.value}
                           className="btn btn-sm"
                           style={{
-                            border:     `1px solid ${checked ? "var(--color-amber)" : "#ccc"}`,
-                            background: checked ? "rgba(242,169,59,0.14)" : "var(--color-paper-dark)",
+                            border:     `1px solid ${checked ? "var(--action-primary)" : "#ccc"}`,
+                            background: checked ? "var(--action-soft)" : "var(--color-paper-dark)",
                             color:      checked ? "var(--color-ink)" : "var(--color-ink-soft)",
                             textDecoration: checked ? "none" : "line-through",
                             fontFamily: "var(--font-mono)",
@@ -401,7 +401,7 @@ export default function TrainFormModal({ show, train, onClose, onSaved }) {
               <button
                 type="submit"
                 form="trainForm"
-                className="btn btn-amber"
+                className="btn btn-primary"
                 disabled={submitting}
               >
                 {submitting ? "Saving..." : isEdit ? "Save Changes" : "Create Train"}

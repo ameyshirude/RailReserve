@@ -2,15 +2,21 @@
   --color-navy: #11212f;
   --color-navy-2: #182c3d;
   --color-navy-3: #1f3a4f;
-  --color-amber: #bbddf5;
-  --color-amber-dark: #6771f9;
+  --action-primary: #4338ca;
+  --action-hover: #3730a3;
+  --action-soft: #eef2ff;
+  --accent-on-dark: #c7d2fe;
+  --focus-ring: rgba(67, 56, 202, 0.25);
+  --surface: #ffffff;
+  --surface-muted: #f1f5f9;
+  --border: #d7dfe8;
   --color-steel: #6f9fc9;
-  --color-paper: #f6f0e2;
-  --color-paper-dark: #ebe0c8;
+  --color-paper: #ffffff;
+  --color-paper-dark: #f1f5f9;
   --color-ink: #1d2b36;
   --color-ink-soft: #4a5a68;
-  --color-success: #4c9a6a;
-  --color-danger: #d9534f;
+  --color-success: #166534;
+  --color-danger: #b42318;
 
   --font-display: "Oswald", "Arial Narrow", sans-serif;
   --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -48,17 +54,17 @@ h4,
 }
 
 a {
-  color: var(--color-amber);
+  color: var(--accent-on-dark);
   text-decoration: none;
 }
 a:hover {
-  color: var(--color-amber-dark);
+  color: #ffffff;
   text-decoration: underline;
 }
 
 ::selection {
-  background: var(--color-amber);
-  color: var(--color-ink);
+  background: var(--action-primary);
+  color: white;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -75,13 +81,13 @@ a:hover {
   background: var(--color-paper);
   color: var(--color-ink);
   border-radius: var(--radius-card);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
   overflow: hidden;
   position: relative;
 }
 
 .ticket-card__header {
-  background: var(--color-ink-soft);
+  background: var(--color-navy-2);
   color: var(--color-paper);
   padding: 1.25rem 1.5rem;
 }
@@ -113,24 +119,37 @@ a:hover {
   right: -10px;
 }
 
-.btn-amber {
-  background-color: var(--color-amber);
-  border-color: var(--color-amber);
-  color: var(--color-ink);
-  font-family: var(--font-display);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+.btn-primary {
+  --bs-btn-color: #fff;
+  --bs-btn-bg: var(--action-primary);
+  --bs-btn-border-color: var(--action-primary);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--action-hover);
+  --bs-btn-hover-border-color: var(--action-hover);
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: var(--action-hover);
+  --bs-btn-active-border-color: var(--action-hover);
+  --bs-btn-disabled-color: #fff;
+  --bs-btn-disabled-bg: var(--action-primary);
+  --bs-btn-disabled-border-color: var(--action-primary);
+  --bs-btn-focus-shadow-rgb: 67, 56, 202;
+  font-family: var(--font-body);
   font-weight: 600;
 }
-.btn-amber:hover {
-  background-color: var(--color-amber-dark);
-  border-color: var(--color-amber-dark);
-  color: var(--color-ink);
-}
 
-.text-amber {
-  color: var(--color-amber);
+.btn { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.form-control, .form-select { min-height: 44px; }
+.form-control:focus, .form-select:focus {
+  border-color: var(--action-primary);
+  box-shadow: 0 0 0 0.2rem var(--focus-ring);
 }
+:where(a, button, input, select, summary):focus-visible {
+  outline: 3px solid #818cf8;
+  outline-offset: 3px;
+}
+.ticket-card a:not(.btn) { color: var(--action-primary); }
+.ticket-card a:not(.btn):hover { color: var(--action-hover); }
+.text-accent { color: var(--accent-on-dark); }
 .bg-navy-2 {
   background-color: var(--color-navy-2);
 }

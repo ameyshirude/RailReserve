@@ -66,7 +66,7 @@ export default function TrainManagement() {
           </Link>
         </div>
         <button
-          className="btn btn-amber"
+          className="btn btn-primary"
           onClick={() => { setEditingTrain(null); setModalOpen(true); }}
         >
           + Add Train
@@ -81,7 +81,7 @@ export default function TrainManagement() {
           <div className="ticket-card__body text-center py-5">
             <p className="text-muted mb-3">No trains added yet.</p>
             <button
-              className="btn btn-amber"
+              className="btn btn-primary"
               onClick={() => { setEditingTrain(null); setModalOpen(true); }}
             >
               Add the first train

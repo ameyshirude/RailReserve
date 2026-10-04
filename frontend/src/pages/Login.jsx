@@ -4,6 +4,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import apiClient from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
 import "./Auth.css";
+import { bookingUrl } from "../utils/bookingRoute";
 
 export default function Login() {
   const [form, setForm] = useState({ username: "", password: "" });
@@ -16,7 +17,7 @@ export default function Login() {
     if (successMessage) {
       toast.success(successMessage);
       // Clear navigation state so the toast doesn't re-fire on refresh
-      navigate(location.pathname, { replace: true, state: {} });
+      navigate(location.pathname, { replace: true, state: { from: location.state?.from } });
     }
   }, [location.state, navigate, location.pathname]);
 
@@ -33,10 +34,10 @@ export default function Login() {
       const pendingRaw = sessionStorage.getItem("pendingBooking");
       if (pendingRaw) {
         sessionStorage.removeItem("pendingBooking");
-        navigate("/", {
-          state:   { pendingTrain: JSON.parse(pendingRaw) },
-          replace: true,
-        });
+        const pending = JSON.parse(pendingRaw);
+        navigate(bookingUrl(pending.train, pending.boarding, pending.destination, pending.travelDate), { replace: true });
+      } else if (location.state?.from?.startsWith("/booking/")) {
+        navigate(location.state.from, { replace: true });
       } else {
         navigate("/dashboard");
       }
@@ -87,7 +88,7 @@ export default function Login() {
                 required
               />
             </div>
-            <button type="submit" className="btn btn-amber w-100" disabled={submitting}>
+            <button type="submit" className="btn btn-primary w-100" disabled={submitting}>
               {submitting ? "Signing in..." : "Login"}
             </button>
           </form>

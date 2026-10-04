@@ -51,11 +51,11 @@ export default function AdminDashboard() {
       <div className="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
         <div>
           <h1 className="font-display mb-1">Admin Dashboard</h1>
-          <p className="text-amber mb-0 font-mono">
+          <p className="text-accent mb-0 font-mono">
             Logged in as {user?.username} &middot; role: {user?.role}
           </p>
         </div>
-        <Link to="/admin/trains" className="btn btn-amber">
+        <Link to="/admin/trains" className="btn btn-primary">
           Manage Trains
         </Link>
       </div>

@@ -1,5 +1,5 @@
 import React from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 /**
@@ -10,11 +10,12 @@ import { useAuth } from "../context/AuthContext";
  */
 export default function ProtectedRoute({ role, children }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
       <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "60vh" }}>
-        <div className="spinner-border text-amber" role="status">
+        <div className="spinner-border text-accent" role="status">
           <span className="visually-hidden">Loading...</span>
         </div>
       </div>
@@ -22,7 +23,7 @@ export default function ProtectedRoute({ role, children }) {
   }
 
   if (!user) {
-    return <Navigate to={role === "ADMIN" ? "/admin-login" : "/login"} replace />;
+    return <Navigate to={role === "ADMIN" ? "/admin-login" : "/login"} replace state={{ from: location.pathname + location.search }} />;
   }
 
   if (user.role !== role) {

@@ -26,6 +26,9 @@ export function AuthProvider({ children }) {
     try {
       await apiClient.post("/auth/logout");
     } finally {
+      try {
+        Object.keys(sessionStorage).filter((key) => key.startsWith("railreserve:booking:")).forEach((key) => sessionStorage.removeItem(key));
+      } catch { /* Storage may be unavailable. */ }
       setUser(null);
     }
   };
