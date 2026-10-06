@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import apiClient from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
+import { searchParams } from "../utils/trainSearch";
 import BookingFlow from "../components/BookingFlow";
 import "../components/BookingFlow.css";
 
@@ -48,7 +49,7 @@ export default function Booking() {
   const search = { boarding, destination, travelDate: date };
   return (
     <main className="booking-page container py-4 py-md-5">
-      <Link className="booking-back" to="/" state={{ search }}>← Back to train results</Link>
+      <Link className="booking-back" to={`/?${searchParams(search, params.get("sort"))}`}>← Back to train results</Link>
       <header className="booking-page__heading">
         <p className="booking-eyebrow">Your next journey</p>
         <h1>Book your journey</h1>

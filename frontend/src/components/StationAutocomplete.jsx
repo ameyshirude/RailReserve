@@ -11,8 +11,9 @@ export default function StationAutocomplete({
   disabled = false,
   stations = [],
   excludeStation = "",
+  error = "",
 }) {
-  const [query, setQuery] = useState(value || "");
+  const query = value || "";
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [dropdownStyle, setDropdownStyle] = useState({});
@@ -21,10 +22,13 @@ export default function StationAutocomplete({
   const listRef = useRef(null);
   const listboxId = useId();
 
-  // Keep query in sync with external value changes (e.g. restored pending booking)
+  // Keep validation visible instead of covering it with the suggestion popup.
   useEffect(() => {
-    setQuery(value || "");
-  }, [value]);
+    if (error) {
+      setOpen(false);
+      setActiveIndex(-1);
+    }
+  }, [error]);
 
   // Position the dropdown relative to the input using fixed positioning
   useEffect(() => {
@@ -59,15 +63,11 @@ export default function StationAutocomplete({
         !e.target.closest(".station-autocomplete__dropdown")
       ) {
         setOpen(false);
-        // If user typed something that isn't a valid station, revert to last valid value
-        if (query !== value) {
-          setQuery(value || "");
-        }
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [query, value]);
+  }, []);
 
   // Substring matching instead of prefix-only
   const filtered = stations.filter((s) => {
@@ -92,25 +92,19 @@ export default function StationAutocomplete({
 
   function handleInputChange(e) {
     const val = e.target.value;
-    setQuery(val);
+    onChange(val);
     setOpen(true);
     setActiveIndex(-1);
-    // If user clears the input, clear the selection
-    if (!val.trim()) {
-      onChange("");
-    }
   }
 
   function handleSelect(station) {
-    setQuery(station);
     onChange(station);
     setOpen(false);
     setActiveIndex(-1);
-    inputRef.current?.blur();
   }
 
   function handleFocus() {
-    if (!disabled) {
+    if (!disabled && !error) {
       setOpen(true);
     }
   }
@@ -118,21 +112,22 @@ export default function StationAutocomplete({
   function handleKeyDown(e) {
     if (e.key === "Escape") {
       setOpen(false);
-      setQuery(value || "");
       setActiveIndex(-1);
-      inputRef.current?.blur();
       return;
     }
 
     if (e.key === "Tab") {
       setOpen(false);
       setActiveIndex(-1);
-      if (query !== value) {
-        setQuery(value || "");
-      }
       return;
     }
 
+    if (!open && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+      e.preventDefault();
+      setOpen(true);
+      setActiveIndex(filtered.length ? 0 : -1);
+      return;
+    }
     if (!open || filtered.length === 0) return;
 
     if (e.key === "ArrowDown") {
@@ -142,9 +137,11 @@ export default function StationAutocomplete({
       e.preventDefault();
       setActiveIndex((prev) => (prev > 0 ? prev - 1 : filtered.length - 1));
     } else if (e.key === "Enter") {
-      e.preventDefault();
       if (activeIndex >= 0 && activeIndex < filtered.length) {
+        e.preventDefault();
         handleSelect(filtered[activeIndex]);
+      } else {
+        setOpen(false);
       }
     }
   }
@@ -202,11 +199,6 @@ export default function StationAutocomplete({
       <label
         htmlFor={id}
         className="form-label"
-        style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: "0.80rem",
-          fontStyle: "italic",
-        }}
       >
         {label}
       </label>
@@ -215,10 +207,13 @@ export default function StationAutocomplete({
           ref={inputRef}
           id={id}
           type="text"
-          className="form-control"
+          className={`form-control${error ? " is-invalid" : ""}`}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${id}-error` : undefined}
           value={query}
           onChange={handleInputChange}
           onFocus={handleFocus}
+          onBlur={() => setOpen(false)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={disabled}
@@ -235,18 +230,17 @@ export default function StationAutocomplete({
             type="button"
             className="station-autocomplete__clear"
             onClick={() => {
-              setQuery("");
               onChange("");
               setActiveIndex(-1);
               inputRef.current?.focus();
             }}
-            tabIndex={-1}
-            aria-label="Clear station"
+            aria-label={`Clear ${label.toLowerCase()}`}
           >
             ×
           </button>
         )}
       </div>
+      {error && <p id={`${id}-error`} className="search-field-error">{error}</p>}
       {dropdown}
     </div>
   );

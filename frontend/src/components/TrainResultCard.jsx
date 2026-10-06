@@ -1,10 +1,10 @@
 import React from "react";
 import { uniqueCoachFareOptions } from "../utils/coachDisplay";
 import { formatJourneyDate } from "../utils/bookingRoute";
+import { minimumTrainFare } from "../utils/trainSearch";
 
 export default function TrainResultCard({ train, onSelect, needsLogin }) {
-  const fares = (train.coaches || []).map((coach) => Number(coach.routeFare)).filter(Number.isFinite);
-  const minFare = fares.length ? Math.min(...fares) : Number(train.routeFare || 0);
+  const minFare = minimumTrainFare(train);
   const classes = uniqueCoachFareOptions(train.coaches);
   const titleId = `train-${train.id}-title`;
 
@@ -34,7 +34,7 @@ export default function TrainResultCard({ train, onSelect, needsLogin }) {
         </div>
         <div className="train-result__action">
           <span className="train-result__label">From / passenger</span>
-          <strong className="train-result__fare">₹{minFare.toLocaleString("en-IN")}</strong>
+          <strong className="train-result__fare">{minFare === null ? "Unavailable" : `₹${minFare.toLocaleString("en-IN")}`}</strong>
           <button type="button" className="btn btn-primary" onClick={() => onSelect(train)} aria-label={`Select train ${train.name}, number ${train.number}`}>
             Select train <span aria-hidden="true">→</span>
           </button>

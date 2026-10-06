@@ -107,6 +107,16 @@ test("unavailable train never falls back to booking a different train", async ()
   expect(container.querySelector(".coach-option")).toBeNull();
 });
 
+test("the results link preserves the boarding date and sort in its URL", async () => {
+  await mount([`${route}&sort=price`]);
+  const backLink = container.querySelector(".booking-back");
+  const params = new URLSearchParams(backLink.getAttribute("href").split("?")[1]);
+  expect(params.get("boarding")).toBe("Mumbai");
+  expect(params.get("destination")).toBe("Surat");
+  expect(params.get("date")).toBe("2026-10-10");
+  expect(params.get("sort")).toBe("price");
+});
+
 test("direct booking links return to the selected journey after login", async () => {
   useAuth.mockReturnValue({ user: null, loading: false, setUser: jest.fn() });
   apiClient.post.mockResolvedValueOnce({ data: { user: { id: 1, role: "USER" } } });

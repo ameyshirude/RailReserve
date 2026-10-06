@@ -1,10 +1,11 @@
 // The URL carries the boarding date; seat inventory uses the train's service date.
-export function bookingUrl(train, boarding, destination, travelDate) {
+export function bookingUrl(train, boarding, destination, travelDate, sort) {
   const params = new URLSearchParams({
     boarding: train.boardingHalt?.stationName || boarding,
     destination: train.destinationHalt?.stationName || destination,
     date: train.boardingDate || travelDate,
   });
+  if (sort) params.set("sort", sort);
   return `/booking/${train.id}?${params}`;
 }
 

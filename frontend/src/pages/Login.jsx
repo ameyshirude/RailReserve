@@ -35,7 +35,7 @@ export default function Login() {
       if (pendingRaw) {
         sessionStorage.removeItem("pendingBooking");
         const pending = JSON.parse(pendingRaw);
-        navigate(bookingUrl(pending.train, pending.boarding, pending.destination, pending.travelDate), { replace: true });
+        navigate(bookingUrl(pending.train, pending.boarding, pending.destination, pending.travelDate, pending.sort), { replace: true });
       } else if (location.state?.from?.startsWith("/booking/")) {
         navigate(location.state.from, { replace: true });
       } else {

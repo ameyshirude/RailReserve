@@ -7,7 +7,7 @@
 }
 
 .station-autocomplete__input-wrap .form-control {
-  padding-right: 2rem;
+  padding-right: 3rem;
 }
 
 .station-autocomplete__input-wrap .form-control:disabled {
@@ -18,7 +18,7 @@
 
 .station-autocomplete__clear {
   position: absolute;
-  right: 0.5rem;
+  right: 0;
   top: 50%;
   transform: translateY(-50%);
   background: none;
@@ -28,8 +28,12 @@
   cursor: pointer;
   padding: 0 0.25rem;
   line-height: 1;
+  width: 44px;
+  height: 44px;
   transition: color 0.15s ease;
 }
+
+.station-autocomplete__input-wrap .form-control.is-invalid { background-image: none; }
 
 .station-autocomplete__clear:hover {
   color: var(--color-danger);
