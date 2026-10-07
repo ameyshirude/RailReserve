@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { toast } from "react-toastify";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import apiClient from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
 import "./Auth.css";
@@ -10,6 +10,7 @@ export default function AdminLogin() {
   const [submitting, setSubmitting] = useState(false);
   const { setUser } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -21,7 +22,9 @@ export default function AdminLogin() {
     try {
       const { data } = await apiClient.post("/auth/admin-login", form);
       setUser(data.user);
-      navigate("/admin-dashboard");
+      const from = location.state?.from;
+      const destination = typeof from === "string" && /^\/(?:admin-dashboard|admin\/trains)(?:\?|$)/.test(from) ? from : "/admin-dashboard";
+      navigate(destination, { replace: true });
     } catch (err) {
       toast.error(err.response?.data?.message || "Admin login failed. Please try again.");
     } finally {

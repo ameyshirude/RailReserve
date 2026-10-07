@@ -2,6 +2,7 @@ import React from "react";
 import { Routes, Route } from "react-router-dom";
 
 import Navbar from "./components/Navbar";
+import AdminLayout from "./components/AdminLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 import Home from "./pages/Home";
@@ -34,22 +35,15 @@ export default function App() {
         />
 
         <Route
-          path="/admin-dashboard"
           element={
             <ProtectedRoute role="ADMIN">
-              <AdminDashboard />
+              <AdminLayout />
             </ProtectedRoute>
           }
-        />
-
-        <Route
-          path="/admin/trains"
-          element={
-            <ProtectedRoute role="ADMIN">
-              <TrainManagement />
-            </ProtectedRoute>
-          }
-        />
+        >
+          <Route path="/admin-dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/trains" element={<TrainManagement />} />
+        </Route>
 
         <Route path="*" element={<Home />} />
       </Routes>

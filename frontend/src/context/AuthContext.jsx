@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, startTransition } from "react";
 import apiClient from "../api/axiosClient";
 
 const AuthContext = createContext(null);
@@ -23,14 +23,11 @@ export function AuthProvider({ children }) {
   }, [refreshUser]);
 
   const logout = async () => {
+    await apiClient.post("/auth/logout");
     try {
-      await apiClient.post("/auth/logout");
-    } finally {
-      try {
-        Object.keys(sessionStorage).filter((key) => key.startsWith("railreserve:booking:")).forEach((key) => sessionStorage.removeItem(key));
-      } catch { /* Storage may be unavailable. */ }
-      setUser(null);
-    }
+      Object.keys(sessionStorage).filter((key) => key.startsWith("railreserve:booking:")).forEach((key) => sessionStorage.removeItem(key));
+    } catch { }
+    startTransition(() => setUser(null));
   };
 
   return (

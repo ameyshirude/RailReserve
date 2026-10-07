@@ -51,7 +51,7 @@ export default function AdminDashboard() {
       <div className="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
         <div>
           <h1 className="font-display mb-1">Admin Dashboard</h1>
-          <p className="text-accent mb-0 font-mono">
+          <p className="text-accent mb-0 font-mono text-break">
             Logged in as {user?.username} &middot; role: {user?.role}
           </p>
         </div>
