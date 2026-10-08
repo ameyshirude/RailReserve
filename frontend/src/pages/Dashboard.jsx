@@ -1,413 +1,114 @@
-import React, { useEffect, useState } from "react";
-import { toast } from "react-toastify";
+import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import apiClient from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
-import { downloadReceipt } from "../utils/downloadReceipt";
 import { BookingSkeleton } from "../components/SkeletonLoaders";
+import MyBookingCard from "../components/MyBookingCard";
+import { bookingCategory, filterBookings } from "../utils/bookingPresentation";
+import "./Dashboard.css";
 
-function formatBookingDate(iso) {
-  return new Date(iso).toLocaleString("en-IN", {
-    day: "2-digit", month: "short", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
-}
-
-function formatTravelDate(iso) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-IN", {
-    weekday: "short", day: "2-digit", month: "short", year: "numeric",
-  });
-}
-
-function formatDateTime(iso) {
-  if (!iso) return "Not set";
-  return new Date(iso).toLocaleString("en-IN", {
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function formatDistance(distance) {
-  const value = Number(distance);
-  if (!Number.isFinite(value)) return "Not set";
-  return `${value.toLocaleString("en-IN", { maximumFractionDigits: 1 })} km`;
-}
-
-function TicketDetail({ label, children, mono = false }) {
-  return (
-    <div className="col-6 col-md-3">
-      <div
-        style={{
-          fontSize:      "0.72rem",
-          textTransform: "uppercase",
-          fontFamily:    "var(--font-mono)",
-          color:         "var(--color-ink-soft)",
-          marginBottom:  "3px",
-        }}
-      >
-        {label}
-      </div>
-      <div
-        className={mono ? "font-mono fw-semibold" : undefined}
-        style={{
-          fontSize:  "0.88rem",
-          fontWeight: mono ? undefined : 600,
-          wordBreak: "break-word",
-        }}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function BookingCard({ booking }) {
-  const seatDisplay = booking.passengers
-    .map((p) => `CNF/${p.seatNumber}`)
-    .join(", ");
-
-  return (
-    <div
-      className="ticket-card mb-3"
-      style={{ background: "var(--color-paper)", color: "var(--color-ink)" }}
-    >
-      <div
-        className="ticket-card__header d-flex justify-content-between align-items-start"
-        style={{ padding: "0.9rem 1.25rem" }}
-      >
-        <div>
-          <span className="font-display" style={{ fontSize: "1.2rem", fontFamily:"ui-sans-serif"}}>
-            {booking.train.name}
-          </span>
-          <span
-            className="font-mono ms-2"
-            style={{ fontSize: "0.8rem", borderRadius: "2px", background: "black", color: "var(--color-paper)" }}
-          >
-            #{booking.train.number}
-          </span>
-        </div>
-        <span
-          className="badge"
-          style={{
-            background:  "rgb(16, 228, 41)",
-            color:       "#000a04",
-            fontFamily:  "var(--font-mono)",
-            fontSize:    "0.72rem",
-            fontWeight:  700,
-            padding:     "4px 10px",
-            borderRadius: "12px",
-            border:      "1px solid rgb(5, 5, 5)",
-          }}
-        >
-          ✓ Confirmed
-        </span>
-      </div>
-
-      <div className="ticket-perforation" />
-
-      <div className="ticket-card__body" style={{ padding: "0.9rem 1.25rem" }}>
-        {/* Route */}
-        <div className="d-flex align-items-center gap-2 mb-3 flex-wrap">
-          <span className="fw-semibold">{booking.boarding}</span>
-          <span style={{ color: "var(--color-steel)", fontSize: "1.1rem" }}>→</span>
-          <span className="fw-semibold">{booking.destination}</span>
-        </div>
-
-        <div className="row g-3">
-          <TicketDetail label="PNR" mono>{booking.pnr || "Not set"}</TicketDetail>
-          <TicketDetail label="Distance">{formatDistance(booking.distance)}</TicketDetail>
-          <TicketDetail label="Start">{formatDateTime(booking.startDateTime)}</TicketDetail>
-          <TicketDetail label="Arrival">{formatDateTime(booking.arrivalDateTime)}</TicketDetail>
-          <div className="col-6 col-md-3">
-            <div
-              style={{
-                fontSize:      "0.72rem",
-                textTransform: "uppercase",
-                fontFamily:    "var(--font-mono)",
-                color:         "var(--color-ink-soft)",
-                marginBottom:  "3px",
-              }}
-            >
-              Travel Date
-            </div>
-            <div style={{ fontSize: "0.88rem", fontWeight: 600 }}>
-              {formatTravelDate(booking.travelDate)}
-            </div>
-          </div>
-
-          <div className="col-6 col-md-3">
-            <div
-              style={{
-                fontSize:      "0.72rem",
-                textTransform: "uppercase",
-                fontFamily:    "var(--font-mono)",
-                color:         "var(--color-ink-soft)",
-                marginBottom:  "3px",
-              }}
-            >
-              Coach
-            </div>
-            <div style={{ fontSize: "0.88rem", fontWeight: 600 }}>
-              {booking.coach.name} · {booking.coach.type}
-            </div>
-          </div>
-
-          <div className="col-6 col-md-3">
-            <div
-              style={{
-                fontSize:      "0.72rem",
-                textTransform: "uppercase",
-                fontFamily:    "var(--font-mono)",
-                color:         "var(--color-ink-soft)",
-                marginBottom:  "3px",
-              }}
-            >
-              Seats
-            </div>
-            <div
-              className="font-mono fw-semibold"
-              style={{ fontSize: "0.88rem", color: "#098e17" }}
-            >
-              {seatDisplay || "—"}
-            </div>
-          </div>
-
-          <div className="col-6 col-md-3">
-            <div
-              style={{
-                fontSize:      "0.72rem",
-                textTransform: "uppercase",
-                fontFamily:    "var(--font-mono)",
-                color:         "var(--color-ink-soft)",
-                marginBottom:  "3px",
-              }}
-            >
-              Booked On
-            </div>
-            <div style={{ fontSize: "0.88rem", fontWeight: 600  }}>
-              {formatBookingDate(booking.bookedAt)}
-            </div>
-          </div>
-        </div>
-
-        {booking.durationText && (
-          <div className="mt-3 pt-3" style={{ borderTop: "1px dashed #ccc" }}>
-            <span
-              className="font-mono"
-              style={{ fontSize: "0.78rem", color: "var(--color-ink-soft)", textTransform: "uppercase" }}
-            >
-              Duration
-            </span>
-            <span className="ms-2 fw-semibold">{booking.durationText}</span>
-          </div>
-        )}
-
-        {/* for the list of passengers */}
-        {booking.passengers.length > 0 && (
-          <div className="mt-3 pt-3" style={{ borderTop: "1px dashed #ccc" }}>
-            <div
-              style={{
-                fontSize:      "0.80rem",
-                textTransform: "uppercase",
-                fontFamily:    "var(--font-mono)",
-                color:         "var(--color-ink-soft)",
-                marginBottom:  "6px",
-              }}
-            >
-              Passengers
-            </div>
-            <div className="d-flex flex-wrap gap-2">
-              {booking.passengers.map((p) => (
-                <span
-                  key={p.id}
-                  style={{
-                    display:      "inline-flex",
-                    alignItems:   "center",
-                    gap:          "6px",
-                    padding:      "3px 12px",
-                    borderRadius: "20px",
-                    background:   "var(--surface)",
-                    border:       "1px solid #140202",
-                    fontSize:     "0.82rem",
-                    color:        "var(--color-ink)",
-                  }}
-                >
-                  <span>{p.passengerName}</span>
-                  <span style={{ color: "var(--color-ink)" }}>·</span>
-                  <span style={{ color: "var(--color-ink)" }}>{p.passengerAge}y</span>
-                  <span style={{ color: "var(--color-ink)" }}>·</span>
-                  <span
-                    className="font-mono fw-semibold"
-                    style={{ color: "var(--color-success)" }}
-                  >
-                    CNF/{p.seatNumber}
-                  </span>
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Amount */}
-        {booking.payment && booking.payment.amount > 0 && (
-          <div
-            className="mt-3 d-flex justify-content-between flex-wrap gap-2"
-            style={{ fontSize: "0.82rem", color: "var(--color-ink-soft)" }}
-          >
-            <span>
-              Payment ID:{" "}
-              <span className="font-mono fw-semibold" style={{ color: "var(--color-ink)" }}>
-                {booking.stripeId || booking.payment.stripePaymentId || "Not set"}
-              </span>
-            </span>
-            <span>
-              Amount paid:{" "}
-            <span
-              className="font-mono fw-semibold ms-1"
-              style={{ color: "var(--color-ink)" }}
-            >
-              ₹{booking.payment.amount.toLocaleString("en-IN")}
-            </span>
-            </span>
-          </div>
-        )}
-
-        <div className="mt-3 d-flex justify-content-end">
-          <button
-            type="button"
-            className="btn btn-sm btn-primary"
-            onClick={() => downloadReceipt(booking, booking.payment?.amount || 0)}
-          >
-            Download Receipt
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+const VIEWS = [["all", "All"], ["upcoming", "Upcoming"], ["past", "Past"], ["cancelled", "Cancelled"], ["pending", "Pending"]];
+const PAGE_SIZE = 6;
 
 export default function Dashboard() {
-  const { user }     = useAuth();
-  const [bookings,   setBookings]  = useState([]);
-  const [loading,    setLoading]   = useState(true);
+  const { user } = useAuth();
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState("");
+  const [reload, setReload] = useState(0);
+  const [query, setQuery] = useState("");
+  const [view, setView] = useState("all");
+  const [sort, setSort] = useState("upcoming");
+  const [page, setPage] = useState(1);
+  const [now, setNow] = useState(Date.now);
+  const resultsRef = useRef(null);
 
   useEffect(() => {
-    apiClient
-      .get("/bookings/my")
-      .then(({ data }) => setBookings(data.bookings))
-      .catch((err) =>
-        toast.error(err.response?.data?.message || "Could not load bookings.")
-      )
-      .finally(() => setLoading(false));
+    const controller = new AbortController();
+    let active = true;
+    setLoading(true);
+    setError("");
+    apiClient.get("/bookings/my", { signal: controller.signal })
+      .then(({ data }) => {
+        if (!active) return;
+        if (!Array.isArray(data.bookings)) throw new Error("Invalid bookings response");
+        setBookings(data.bookings);
+        setLoaded(true);
+        setNow(Date.now());
+      })
+      .catch((err) => {
+        if (!active) return;
+        setError(err.response?.status === 401
+          ? "Your session has expired. Sign in again to see your bookings."
+          : "Could not load your bookings. Please try again.");
+      })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; controller.abort(); };
+  }, [reload]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60000);
+    return () => window.clearInterval(timer);
   }, []);
 
-  // Split into upcoming and completed based on travel date vs today.
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-
-  const upcoming = bookings.filter(
-    (b) => !b.travelDate || new Date(b.travelDate) >= todayStart
-  );
-  const completed = bookings.filter(
-    (b) => b.travelDate && new Date(b.travelDate) < todayStart
-  );
+  const counts = Object.fromEntries(VIEWS.map(([key]) => [key, key === "all" ? bookings.length : bookings.filter((booking) => bookingCategory(booking, now) === key).length]));
+  const filtered = filterBookings(bookings, query, view, sort, now);
+  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pages);
+  const visible = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const filteredView = query.trim() || view !== "all";
+  const resetFilters = () => { setQuery(""); setView("all"); setPage(1); };
+  const changePage = (next) => {
+    setPage(next);
+    resultsRef.current?.focus();
+    resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   return (
-    <div className="container py-5">
-      <div className="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
-        <div>
-          <h1 className="font-display mb-1">My Dashboard</h1>
-          <p className="text-accent mb-0 font-mono">Welcome, {user?.username}</p>
+    <main className="my-bookings container">
+      <header className="my-bookings__header">
+        <div><h1>My bookings</h1><p>{user?.username ? `Welcome, ${user.username}. ` : ""}Your journeys and ticket details, in one place.</p></div>
+        <div className="my-bookings__header-actions">
+          <button className="btn my-bookings__refresh" type="button" onClick={() => setReload((value) => value + 1)} disabled={loading}>{loading && loaded ? "Refreshing…" : "Refresh bookings"}</button>
+          <Link to="/" className="btn btn-primary">Search trains</Link>
         </div>
-        <Link to="/" className="btn btn-primary">
-          + Search Trains
-        </Link>
-      </div>
-
-
-      {loading ? (
-        <div className="d-flex flex-column gap-4">
-          <section>
-            <div className="placeholder col-3 rounded mb-3" style={{ height: "1.5rem" }}></div>
-            {[1, 2].map((i) => (
-              <BookingSkeleton key={i} />
-            ))}
+      </header>
+      {error && <div className="my-bookings__error" role="alert">
+        <p>{error}{loaded ? " Previously loaded bookings are shown below." : ""}</p>
+        {error.includes("session") ? <Link to="/login" state={{ from: "/dashboard" }} className="btn btn-primary">Sign in again</Link>
+          : <button type="button" className="btn btn-outline-secondary" onClick={() => setReload((value) => value + 1)} disabled={loading}>Try again</button>}
+      </div>}
+      {!loaded && loading ? <div role="status"><span className="visually-hidden">Loading your bookings…</span><div aria-hidden="true"><BookingSkeleton /><BookingSkeleton /></div></div>
+        : loaded && bookings.length === 0 ? <section className="my-bookings__empty">
+          <h2>Your next journey starts here</h2><p>You have no bookings yet. Find a train and choose your seats.</p><Link to="/" className="btn btn-primary">Book your first journey</Link>
+        </section>
+        : loaded && <>
+          <section className="my-bookings__toolbar" aria-label="Find a booking">
+            <div className="my-bookings__filters" role="group" aria-label="Booking status">
+              {VIEWS.map(([key, label]) => <button key={key} type="button" className="my-bookings__filter" aria-pressed={view === key} onClick={() => { setView(key); setPage(1); }}>{label}<span>{counts[key]}</span></button>)}
+            </div>
+            <div className="my-bookings__controls">
+              <div><label htmlFor="my-booking-search">Search bookings</label><input id="my-booking-search" type="search" className="form-control" placeholder="PNR, train, or station" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} /></div>
+              <div><label htmlFor="my-booking-sort">Sort by</label><select id="my-booking-sort" className="form-select" value={sort} onChange={(event) => { setSort(event.target.value); setPage(1); }}>
+                <option value="upcoming">Upcoming first</option><option value="journey">Journey date: newest first</option><option value="booked">Booked: newest first</option>
+              </select></div>
+              <button type="button" className="btn btn-outline-secondary" disabled={!filteredView} onClick={resetFilters}>Clear filters</button>
+            </div>
           </section>
-        </div>
-      ) : bookings.length === 0 ? (
-        <div className="ticket-card">
-          <div className="ticket-card__body text-center py-5">
-            <div style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}>🎫</div>
-            <p className="text-muted mb-3">You have no confirmed bookings yet.</p>
-            <Link to="/" className="btn btn-primary">
-              Book your first journey
-            </Link>
+          <div className="my-bookings__result-info">
+            <p role="status">{loading ? "Refreshing bookings…" : `${filtered.length} of ${bookings.length} booking${bookings.length === 1 ? "" : "s"}${filteredView ? " match your filters" : ""}`}</p>
+            <p>All journey times are in IST.</p>
           </div>
-        </div>
-      ) : (
-        <>
-          {/* For Upcoming */}
-          {upcoming.length > 0 && (
-            <section className="mb-5">
-              <h2
-                className="font-display mb-3"
-                style={{ fontSize: "1.15rem", color: "var(--color-paper)" }}
-              >
-                Upcoming
-                <span
-                  className="badge ms-2"
-                  style={{
-                    background:  "var(--action-soft)",
-                    color:       "var(--accent-on-dark)",
-                    fontFamily:  "var(--font-mono)",
-                    fontSize:    "0.75rem",
-                    fontWeight:  700,
-                    verticalAlign: "middle",
-                  }}
-                >
-                  {upcoming.length}
-                </span>
-              </h2>
-              {upcoming.map((b) => (
-                <BookingCard key={b.id} booking={b} />
-              ))}
-            </section>
-          )}
-
-          {/* for completed transactions*/}
-          {completed.length > 0 && (
-            <section>
-              <h2
-                className="font-display mb-3"
-                style={{ fontSize: "1.15rem", color: "var(--color-steel)" }}
-              >
-                Completed
-                <span
-                  className="badge ms-2"
-                  style={{
-                    background:  "rgba(111,159,201,0.15)",
-                    color:       "var(--color-steel)",
-                    fontFamily:  "var(--font-mono)",
-                    fontSize:    "0.75rem",
-                    fontWeight:  700,
-                    verticalAlign: "middle",
-                  }}
-                >
-                  {completed.length}
-                </span>
-              </h2>
-              {completed.map((b) => (
-                <BookingCard key={b.id} booking={b} />
-              ))}
-            </section>
-          )}
-        </>
-      )}
-    </div>
+          <section className="my-bookings__results" aria-label="Your bookings" aria-busy={loading} tabIndex={-1} ref={resultsRef}>
+            {visible.length ? visible.map((booking) => <MyBookingCard key={booking.id} booking={booking} now={now} />)
+              : <div className="my-bookings__empty"><h2>{query.trim() ? "No matching bookings" : `No ${view} bookings`}</h2><p>{query.trim() ? "Try another PNR, train name, or station." : "Choose another status to see the rest of your journeys."}</p><button type="button" className="btn btn-primary" onClick={resetFilters}>Show all bookings</button></div>}
+          </section>
+          {pages > 1 && <nav className="my-bookings__pagination" aria-label="Booking pages">
+            <span>Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length} · Page {currentPage} of {pages}</span>
+            <div><button type="button" className="btn btn-outline-secondary" aria-label="Previous page" disabled={currentPage === 1} onClick={() => changePage(currentPage - 1)}>Previous</button><button type="button" className="btn btn-outline-secondary" aria-label="Next page" disabled={currentPage === pages} onClick={() => changePage(currentPage + 1)}>Next</button></div>
+          </nav>}
+        </>}
+    </main>
   );
 }
