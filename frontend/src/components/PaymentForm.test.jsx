@@ -65,3 +65,20 @@ test("declined payments display a persistent error and do not confirm a ticket",
   expect(apiClient.post).not.toHaveBeenCalled();
   expect(onSuccess).not.toHaveBeenCalled();
 });
+
+test("a cancelled or refunded booking stops confirmation retries and links to bookings", async () => {
+  const message = "This booking can no longer be confirmed. Check My bookings for its status and contact support if you were charged.";
+  stripe.retrievePaymentIntent.mockResolvedValue({ paymentIntent: { id: "pi_paid", status: "succeeded" } });
+  apiClient.post.mockRejectedValue({ response: { status: 409, data: { message } } });
+  await mount();
+  await click("Confirm paid booking");
+  expect(container.querySelector('[role="alert"]').textContent).toBe(message);
+  expect(container.querySelector('[role="status"]')).toBeNull();
+  expect(container.querySelector('a[href="/dashboard"]').textContent).toBe("View My bookings");
+  const button = [...container.querySelectorAll("button")].find((el) => el.textContent === "Booking cannot be confirmed");
+  expect(button.disabled).toBe(true);
+  await act(async () => button.click());
+  expect(apiClient.post).toHaveBeenCalledTimes(1);
+  expect(stripe.confirmPayment).not.toHaveBeenCalled();
+  expect(onSuccess).not.toHaveBeenCalled();
+});

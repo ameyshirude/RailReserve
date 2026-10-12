@@ -2,6 +2,7 @@ const express = require("express");
 const Stripe  = require("stripe");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const prisma = require("../prismaClient");
+const { verifyBookingPayment } = require("../services/verifyBookingPayment");
 const {
   findRouteHalts,
   parseRunningDays,
@@ -300,36 +301,13 @@ router.post("/verify-payment", requireAuth, requireRole("USER"), async (req, res
   const { bookingId, paymentIntentId } = req.body;
   const userId = req.user.id;
 
-  if (!bookingId || !paymentIntentId)
-    return res.status(400).json({ message: "bookingId and paymentIntentId are required." });
-
   try {
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-
-    if (paymentIntent.status !== "succeeded")
-      return res.status(400).json({ message: "Payment has not completed yet." });
-
-    if (paymentIntent.metadata.bookingId !== String(bookingId))
-      return res.status(403).json({ message: "Payment does not match this booking." });
-
-    const booking = await prisma.booking.findFirst({
-      where: { id: Number(bookingId), userId },
+    const payment = await verifyBookingPayment({
+      prisma, stripe, bookingId, paymentIntentId, userId,
     });
-    if (!booking) return res.status(404).json({ message: "Booking not found." });
-
-    const [updatedPayment, updatedBooking] = await prisma.$transaction([
-      prisma.payment.update({
-        where: { bookingId: Number(bookingId) },
-        data:  { status: "PAID" },
-      }),
-      prisma.booking.update({
-        where: { id: Number(bookingId) },
-        data:  { status: "CONFIRMED" },
-      })
-    ]);
-
-    res.json({ payment: updatedPayment });
+    res.json({ payment });
   } catch (err) {
+    if (err.statusCode) return res.status(err.statusCode).json({ message: err.message });
     console.error(err);
     res.status(500).json({ message: "Failed to verify payment." });
   }

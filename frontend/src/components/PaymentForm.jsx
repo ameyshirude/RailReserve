@@ -46,6 +46,7 @@ export default function PaymentForm({ amount, bookingId, clientSecret, onSuccess
   const [errorMessage, setErrorMessage] = useState("");
   const [paidIntentId, setPaidIntentId] = useState(null);
   const [checkingPayment, setCheckingPayment] = useState(true);
+  const [verificationBlocked, setVerificationBlocked] = useState(false);
 
   // A refresh after payment must offer verification, rather than another charge.
   useEffect(() => {
@@ -65,13 +66,18 @@ export default function PaymentForm({ amount, bookingId, clientSecret, onSuccess
       await apiClient.post("/bookings/verify-payment", { bookingId, paymentIntentId });
       onSuccess();
     } catch (err) {
-      setErrorMessage("Payment received, but we couldn’t confirm your ticket. Retry confirmation; you won’t be charged again.");
+      if (err.response?.status === 409) {
+        setVerificationBlocked(true);
+        setErrorMessage(err.response.data?.message || "This booking can no longer be confirmed. Check My bookings for its status and contact support if you were charged.");
+      } else {
+        setErrorMessage("Payment received, but we couldn’t confirm your ticket. Retry confirmation; you won’t be charged again.");
+      }
       setPaying(false);
     }
   };
 
   const handlePay = async () => {
-    if (paying || checkingPayment) return;
+    if (paying || checkingPayment || verificationBlocked) return;
     setErrorMessage("");
     if (paidIntentId) {
       setPaying(true);
@@ -118,7 +124,8 @@ export default function PaymentForm({ amount, bookingId, clientSecret, onSuccess
   return (
     <>
       {errorMessage && <p className="booking-error" role="alert">{errorMessage}</p>}
-      {paidIntentId && <p role="status">Payment received. Confirm your ticket to finish.</p>}
+      {paidIntentId && !verificationBlocked && <p role="status">Payment received. Confirm your ticket to finish.</p>}
+      {verificationBlocked && <p><a href="/dashboard">View My bookings</a></p>}
       {!paidIntentId && <PaymentElement
         onReady={() => setPaymentElementReady(true)}
         onLoadError={(event) => {
@@ -130,9 +137,11 @@ export default function PaymentForm({ amount, bookingId, clientSecret, onSuccess
         type="button"
         className="btn btn-primary w-100 mt-3"
         onClick={handlePay}
-        disabled={paying || checkingPayment || (!paidIntentId && (!stripe || !elements || !paymentElementReady))}
+        disabled={verificationBlocked || paying || checkingPayment || (!paidIntentId && (!stripe || !elements || !paymentElementReady))}
       >
-        {paying
+        {verificationBlocked
+          ? "Booking cannot be confirmed"
+          : paying
           ? "Processing…"
           : checkingPayment
           ? "Checking payment…"
