@@ -135,6 +135,19 @@ router.post("/confirm", requireAuth, requireRole("USER"), async (req, res) => {
   )
     return res.status(400).json({ message: "All fields are required." });
 
+  // Validate each passenger's name and age
+  for (let i = 0; i < passengers.length; i++) {
+    const p = passengers[i];
+    const name = typeof p.name === "string" ? p.name.trim() : "";
+    const age = Number(p.age);
+    if (!name || name.length > 100)
+      return res.status(400).json({ message: `Passenger ${i + 1}: name is required (max 100 characters).` });
+    if (/<[^>]*>/.test(name))
+      return res.status(400).json({ message: `Passenger ${i + 1}: name contains invalid characters.` });
+    if (!Number.isInteger(age) || age < 1 || age > 120)
+      return res.status(400).json({ message: `Passenger ${i + 1}: age must be between 1 and 120.` });
+  }
+
   try {
     const result = await prisma.$transaction(async (tx) => {
       const reservation = await tx.reservation.findFirst({
@@ -196,7 +209,7 @@ router.post("/confirm", requireAuth, requireRole("USER"), async (req, res) => {
             create: passengers.map((p, i) => ({
               coachId:       reservation.coachId,
               seatNumber:    seatNumbers[i],
-              passengerName: p.name,
+              passengerName: String(p.name).trim().slice(0, 100),
               passengerAge:  Number(p.age),
             })),
           },

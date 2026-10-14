@@ -1,6 +1,7 @@
 import React from "react";
 import { Routes, Route } from "react-router-dom";
 
+import ErrorBoundary from "./components/ErrorBoundary";
 import Navbar from "./components/Navbar";
 import AdminLayout from "./components/AdminLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -16,7 +17,7 @@ import TrainManagement from "./pages/TrainManagement";
 
 export default function App() {
   return (
-    <>
+    <ErrorBoundary>
       <Navbar />
       <Routes>
         <Route path="/" element={<Home />} />
@@ -47,6 +48,6 @@ export default function App() {
 
         <Route path="*" element={<Home />} />
       </Routes>
-    </>
+    </ErrorBoundary>
   );
 }

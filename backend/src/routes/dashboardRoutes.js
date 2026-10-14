@@ -28,17 +28,33 @@ router.get("/admin/dashboard", requireAuth, requireRole("ADMIN"), async (req, re
 
 router.get("/admin/bookings", requireAuth, requireRole("ADMIN"), async (req, res) => {
   try {
-    const bookings = await prisma.booking.findMany({
-      orderBy: { bookedAt: "desc" },
-      include: {
-        user:       { select: { username: true, email: true, phone: true } },
-        train:      { select: { name: true, number: true, halts: { orderBy: { order: "asc" } } } },
-        coach:      { select: { name: true, type: true } },
-        passengers: true,
-        payment:    true,
-      },
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 50));
+    const skip = (page - 1) * limit;
+
+    const [bookings, total] = await Promise.all([
+      prisma.booking.findMany({
+        orderBy: { bookedAt: "desc" },
+        skip,
+        take: limit,
+        include: {
+          user:       { select: { username: true, email: true, phone: true } },
+          train:      { select: { name: true, number: true, halts: { orderBy: { order: "asc" } } } },
+          coach:      { select: { name: true, type: true } },
+          passengers: true,
+          payment:    true,
+        },
+      }),
+      prisma.booking.count(),
+    ]);
+
+    res.json({
+      bookings: bookings.map(presentBooking),
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
     });
-    res.json({ bookings: bookings.map(presentBooking) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to load bookings." });

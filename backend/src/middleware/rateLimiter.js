@@ -16,7 +16,16 @@ const bookingLimiter = rateLimit({
   message: { message: "Too many booking requests from this IP, please try again later." },
 });
 
+const searchLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many search requests from this IP, please try again later." },
+});
+
 module.exports = {
   authLimiter,
   bookingLimiter,
+  searchLimiter,
 };

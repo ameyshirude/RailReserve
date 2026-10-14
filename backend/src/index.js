@@ -1,11 +1,20 @@
 require("dotenv").config();
+
+// for missing env variables
+const REQUIRED_ENV = ["DATABASE_URL", "JWT_SECRET", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"];
+const missing = REQUIRED_ENV.filter((key) => !process.env[key]);
+if (missing.length) {
+  console.error(`❌  Missing required environment variable(s): ${missing.join(", ")}`);
+  process.exit(1);
+}
+
 const express = require("express");
 const helmet = require("helmet");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const prisma = require("./prismaClient");
 const { createUniquePnr } = require("./utils/bookingPresenter");
-const { bookingLimiter } = require("./middleware/rateLimiter");
+const { bookingLimiter, searchLimiter } = require("./middleware/rateLimiter");
 
 const authRoutes      = require("./routes/authRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
@@ -51,8 +60,8 @@ app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 app.use("/api/auth",         authRoutes);
 app.use("/api",              dashboardRoutes);
 app.use("/api/admin/trains", trainRoutes);
-app.use("/api/trains",       trainSearchRoutes);
-app.use("/api/stations",     stationRoutes);
+app.use("/api/trains",       searchLimiter, trainSearchRoutes);
+app.use("/api/stations",     searchLimiter, stationRoutes);
 app.use("/api/bookings",     bookingLimiter, bookingRoutes);
 
 app.use("/api", (req, res) => res.status(404).json({ message: "Not found." }));

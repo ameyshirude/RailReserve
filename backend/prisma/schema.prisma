@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 enum Role {
@@ -106,7 +107,7 @@ model Booking {
   coachId        Int
   boarding       String
   destination    String
-  travelDate     DateTime?
+  travelDate     DateTime
   status         BookingStatus @default(PENDING)
   cancelledSeats String?
   bookedAt       DateTime      @default(now())
@@ -117,6 +118,7 @@ model Booking {
   payment        Payment?
 
   @@index([userId, travelDate, status])
+  @@index([trainId, status])
   @@map("bookings")
 }
 

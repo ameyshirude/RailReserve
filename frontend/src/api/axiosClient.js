@@ -6,4 +6,23 @@ const apiClient = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+let logoutHandler = null;
+export function setLogoutHandler(fn) {
+  logoutHandler = fn;
+}
+
+apiClient.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (
+      err.response?.status === 401 &&
+      !err.config?.url?.includes("/auth/me") &&
+      !err.config?.url?.includes("/auth/login")
+    ) {
+      if (logoutHandler) logoutHandler();
+    }
+    return Promise.reject(err);
+  }
+);
+
 export default apiClient;
